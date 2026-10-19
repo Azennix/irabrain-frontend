@@ -1,0 +1,361 @@
+@import "tailwindcss";
+
+:root {
+  /* =========================================
+     IRABRAIN — CORE
+  ========================================= */
+
+  --background: #121110;
+  --foreground: #EEE3D1;
+
+  /* SOLID SURFACES */
+  --surface: #171716;
+  --surface-soft: #171716;
+  --surface-hover: #181512;
+
+  /* BORDERS */
+  --border: rgba(238, 227, 209, 0.12);
+
+  /* TEXT */
+  --muted: rgba(238, 227, 209, 0.60);
+
+  /* ACCENT */
+  --accent: #EEE3D1;
+}
+
+
+/* =========================================
+   LIGHT MODE
+========================================= */
+
+html.light {
+  --background: #EEE8DC;
+  --foreground: #171516;
+
+  --surface: #F5F0E6;
+  --surface-soft: #F0EBE1;
+  --surface-hover: #E9E2D6;
+
+  --border: rgba(23, 21, 18, 0.14);
+
+  --muted: rgba(23, 21, 18, 0.60);
+
+  --accent: #EEE3D1;
+}
+
+
+/* =========================================
+   TAILWIND THEME
+========================================= */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-manrope);
+}
+
+
+/* =========================================
+   GLOBAL RESET
+========================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+
+  font-family:
+    var(--font-manrope),
+    sans-serif;
+
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+
+/* =========================================
+   FORM ELEMENTS
+========================================= */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+
+/* =========================================
+   COLOR SCHEME
+========================================= */
+
+html,
+body {
+  color-scheme: dark;
+}
+
+html.light,
+html.light body {
+  color-scheme: light;
+}
+
+
+/* =========================================
+   SCROLLBAR
+   Simple + subtle
+========================================= */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color:
+    rgba(238, 227, 209, 0.18)
+    transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(238, 227, 209, 0.16);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(238, 227, 209, 0.24);
+}
+
+
+/* =========================================
+   SUBTLE ANIMATION
+========================================= */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* =========================================
+   SELECTION
+========================================= */
+
+::selection {
+  background: rgba(138, 3, 3, 0.179);
+  color: var(--foreground);
+}
+
+
+/* =========================================
+   MOBILE SAFE AREA
+========================================= */
+
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 767px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+}
+
+
+
+/* IRABRAIN — Premium Brain Tier */
+.brain-tier-premium {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  line-height: 1;
+
+  color: #EEE3D1;
+
+  background: linear-gradient(
+    110deg,
+    #9f9482 0%,
+    #EEE3D1 35%,
+    #ffffff 50%,
+    #EEE3D1 65%,
+    #9f9482 100%
+  );
+
+  background-size: 250% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  animation: brain-tier-shimmer 5s ease-in-out infinite;
+}
+
+@keyframes brain-tier-shimmer {
+  0%,
+  100% {
+    background-position: 100% 50%;
+  }
+
+  50% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brain-tier-premium {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: #EEE3D1;
+  }
+}
+
+
+/* =========================================
+   IRABRAIN — Animated Premium Tier Borders
+   ========================================= */
+
+.brain-tier-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+
+  transition:
+    transform 300ms ease,
+    border-color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+/* Moving highlight */
+.brain-tier-card::before {
+  content: "";
+  position: absolute;
+  inset: -150%;
+  z-index: -1;
+
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 300deg,
+    rgba(238, 227, 209, 0.9) 325deg,
+    transparent 350deg
+  );
+
+  opacity: 0;
+  animation: ira-tier-rotate 4s linear infinite;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+
+/* Inner card surface */
+.brain-tier-card::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+
+  border-radius: inherit;
+  background: #171716;
+
+  pointer-events: none;
+}
+
+/* Reveal the animated border on hover */
+.brain-tier-card:hover::before,
+.brain-tier-card:focus-visible::before {
+  opacity: 1;
+}
+
+.brain-tier-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(238, 227, 209, 0.65);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* BRAIN ORION — preserve blue */
+.brain-tier-card[data-tier="BRAIN_ORION"]::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 300deg,
+    #4285F4 325deg,
+    transparent 350deg
+  );
+}
+
+.brain-tier-card[data-tier="BRAIN_ORION"]:hover {
+  border-color: #4285F4;
+  box-shadow: 0 0 22px rgba(66, 133, 244, 0.12);
+}
+
+/* HIPPOCAMPUS — preserve gold */
+.brain-tier-card[data-tier="HIPPOCAMPUS"]::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 300deg,
+    #C6A15B 325deg,
+    transparent 350deg
+  );
+}
+
+.brain-tier-card[data-tier="HIPPOCAMPUS"]:hover {
+  border-color: #C6A15B;
+  box-shadow: 0 0 22px rgba(198, 161, 91, 0.12);
+}
+
+@keyframes ira-tier-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brain-tier-card::before {
+    animation: none;
+  }
+
+  .brain-tier-card:hover {
+    transform: none;
+  }
+}
