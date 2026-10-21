@@ -31,6 +31,7 @@ import {
 import NotificationBell from "@/components/notifications/NotificationBell";
 import IRAAuth from "@/components/auth/IRAAuth";
 import { useAuthModal } from "@/lib/auth/AuthModalContext";
+import InstallIRABRAINPopup from "@/components/ui/InstallIRABRAINPopup";
 
 
 
@@ -1307,6 +1308,9 @@ function handleSidebarResizeEnd(
       <IRAAuth />
     </div>
   </div>
+)}
+{isAuthenticated && (
+  <InstallIRABRAINPopup />
 )}
 
     </div>
