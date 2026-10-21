@@ -14,6 +14,7 @@ export default function InstallIRABRAINPopup() {
     useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
 
   useEffect(() => {
     const isStandalone = () =>
@@ -66,9 +67,9 @@ export default function InstallIRABRAINPopup() {
 
   async function install() {
     if (!installEvent) {
-      dismiss();
-      return;
-    }
+     setShowInstallHelp(true);
+     return;
+}
 
     setInstalling(true);
 
@@ -172,6 +173,29 @@ export default function InstallIRABRAINPopup() {
             also use its menu to add IRABRAIN to your home screen.
           </p>
         )}
+
+  {showInstallHelp && (
+  <div className="mt-4 rounded-xl border border-[#EEE3D1]/15 bg-white/[0.04] p-4 text-left">
+    <p className="text-sm font-semibold text-[#EEE3D1]">
+      Install IRABRAIN
+    </p>
+
+    <p className="mt-2 text-xs leading-5 text-white/60">
+      <strong className="text-white/90">Android Chrome:</strong>{" "}
+      Open the browser menu (⋮) and choose Install app or Add to Home screen.
+    </p>
+
+    <p className="mt-2 text-xs leading-5 text-white/60">
+      <strong className="text-white/90">iPhone Safari:</strong>{" "}
+      Tap Share, then choose Add to Home Screen.
+    </p>
+
+    <p className="mt-2 text-xs leading-5 text-white/60">
+      <strong className="text-white/90">Desktop Chrome or Edge:</strong>{" "}
+      Look for the install icon in the address bar or the browser menu.
+    </p>
+  </div>
+)}
 
         <button
           type="button"
