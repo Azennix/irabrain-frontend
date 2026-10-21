@@ -148,7 +148,9 @@ export default function GoogleButton() {
         {
           theme: "filled_black",
           size: "large",
-          width: 400,
+          width: Math.floor(
+          googleButtonRef.current.getBoundingClientRect().width
+),
           text: "continue_with",
           shape: "rectangular",
         }
