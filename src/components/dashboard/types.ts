@@ -25,6 +25,7 @@ export interface Message {
   content: string;
   attachment?: MessageAttachment;
   attachments?: MessageAttachment[];
+  visual?: VisualPayload;
 }
 
 export type IRAState =
@@ -34,3 +35,37 @@ export type IRAState =
   | "retrieving"
   | "connecting"
   | "preparing";
+export type VisualType = "concept_map" | "flowchart" | "comparison" | "steps";
+
+export interface VisualNode {
+  id: string;
+  label: string;
+  description?: string;
+}
+
+export interface VisualEdge {
+  from: string;
+  to: string;
+  label?: string;
+}
+
+export interface VisualStep {
+  title: string;
+  description?: string;
+}
+
+export interface VisualComparisonItem {
+  label: string;
+  values: string[];
+}
+
+export interface VisualPayload {
+  type: VisualType;
+  title: string;
+  description?: string;
+  nodes?: VisualNode[];
+  edges?: VisualEdge[];
+  steps?: VisualStep[];
+  columns?: string[];
+  comparisons?: VisualComparisonItem[];
+}

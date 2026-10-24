@@ -247,6 +247,9 @@ export default function ChatPage() {
           
           const streamingMessageId = createId();
 let response = "";
+let responseVisual: Message["visual"] = undefined;
+
+
 
 response = await sendMessageToIRAStream(
   pendingConversation.message.content,
@@ -259,23 +262,35 @@ response = await sendMessageToIRAStream(
   (chunk) => {
     response += chunk;
 
-    setMessages((current) => {
-      const existing = current.filter(
-        (message) =>
-          message.id !== streamingMessageId
-      );
+    setMessages((current) => [
+      ...current.filter(
+        (message) => message.id !== streamingMessageId
+      ),
+      {
+        id: streamingMessageId,
+        role: "ira",
+        content: response,
+        visual: responseVisual,
+      },
+    ]);
+  },
+  (visual) => {
+    responseVisual = visual;
 
-      return [
-        ...existing,
-        {
-          id: streamingMessageId,
-          role: "ira",
-          content: response,
-        },
-      ];
-    });
+    setMessages((current) => [
+      ...current.filter(
+        (message) => message.id !== streamingMessageId
+      ),
+      {
+        id: streamingMessageId,
+        role: "ira",
+        content: response,
+        visual: responseVisual,
+      },
+    ]);
   }
 );
+  
         } catch (error) {
   console.error("IRA request failed:", error);
 

@@ -1,3 +1,5 @@
+import type { VisualPayload } from "@/components/dashboard/types";
+
 const API_BASE_URL =
   
 process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -293,7 +295,8 @@ export async function sendMessageToIRAStream(
   attachments?: BrainAttachment[],
   workspaceMode: "personal" | "private" = "personal",
   sessionId?: string,
-  onChunk?: (chunk: string) => void
+  onChunk?: (chunk: string) => void,
+  onVisual?: (visual: VisualPayload) => void
 ): Promise<string> {
   const response = await fetch(
     `${API_BASE_URL}/brain/chat/stream`,
@@ -407,7 +410,24 @@ export async function sendMessageToIRAStream(
       text?: unknown;
       success?: unknown;
       message?: unknown;
+      visual?: unknown;
     };
+
+    if (eventName === "visual") {
+  const visual = payload.visual;
+
+  if (
+    typeof visual !== "object" ||
+    visual === null ||
+    !("type" in visual) ||
+    !("title" in visual)
+  ) {
+    throw new Error("IRA returned an invalid visual payload.");
+  }
+
+  onVisual?.(visual as VisualPayload);
+  return;
+}
 
     if (eventName === "chunk") {
       if (typeof payload.text !== "string") {

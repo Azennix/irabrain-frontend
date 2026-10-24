@@ -10,6 +10,7 @@ import IRABrainThinking from "./IRABrainThinking";
 import type { IRAState, Message } from "./types";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { submitResponseFeedback } from "@/services/api/responseFeedbackApi";
+import IRAVisualRenderer from "./IRAVisualRenderer";
 
 interface IRAConversationProps {
   messages: Message[];
@@ -254,8 +255,8 @@ useEffect(() => {
     
 
                   <p className="whitespace-pre-wrap text-sm leading-6 text-[#EEE3D1] sm:text-base">
-                    {message.content}
-                    {/* BRAIN RECHARGE ACTION */}
+    {message.content}
+    {/* BRAIN RECHARGE ACTION */}
 
 {!isUser &&
   workspaceMode === "personal" &&
@@ -286,6 +287,11 @@ useEffect(() => {
     </button>
   )}
                   </p>
+
+{!isUser && message.visual && (
+    <IRAVisualRenderer visual={message.visual} />
+)}
+
 
                   {/* IRA RESPONSE FEEDBACK */}
 
