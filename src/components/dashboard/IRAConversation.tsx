@@ -291,7 +291,7 @@ useEffect(() => {
                   )}
 
                   {!isUser && message.visual && (
-    <IRAVisualRenderer visual={message.visual} />
+    <IRAVisualRenderer visual={message.visual} content={message.content} />
 )}
 
 

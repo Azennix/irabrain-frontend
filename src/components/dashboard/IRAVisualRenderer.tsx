@@ -9,6 +9,7 @@ import type {
 
 interface Props {
   visual: VisualPayload;
+  content?: string;
 }
 
 function VisualNodeCard({
@@ -53,8 +54,9 @@ function EdgeLabel({ edge }: { edge: VisualEdge }) {
   );
 }
 
-export default function IRAVisualRenderer({ visual }: Props) {
+export default function IRAVisualRenderer({ visual, content = "" }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [textExpanded, setTextExpanded] = useState(false);
 
   const nodes = visual.nodes ?? [];
   const edges = visual.edges ?? [];
@@ -253,6 +255,32 @@ export default function IRAVisualRenderer({ visual }: Props) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {content.trim() && (
+        <div className="border-t border-[#EEE3D1]/10">
+          <button
+            type="button"
+            onClick={() => setTextExpanded((current) => !current)}
+            aria-expanded={textExpanded}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-[#EEE3D1]/80 transition-colors hover:bg-[#EEE3D1]/[0.06]"
+          >
+            <span>
+              {textExpanded ? "Hide Text Response" : "View Text Response"}
+            </span>
+            <span aria-hidden="true">
+              {textExpanded ? "−" : "+"}
+            </span>
+          </button>
+
+          {textExpanded && (
+            <div className="border-t border-[#EEE3D1]/10 px-4 py-4">
+              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[#EEE3D1]/80">
+                {content}
+              </p>
             </div>
           )}
         </div>
