@@ -25,6 +25,8 @@ import {
   login as loginApi,
   verifyLoginCode,
   getCurrentUser as fetchCurrentUser,
+  refreshSession,
+  logoutApi,
 } from "@/services/api/authApi";
 
 interface AuthContextValue {
@@ -81,37 +83,72 @@ export function AuthProvider({
   // =====================================================
 
   useEffect(() => {
+    let cancelled = false;
+
     async function restoreSession() {
-      const storedToken =
-        getAccessToken();
-
-      const storedUser =
-        getCurrentUser();
-
-      if (!storedToken || !storedUser) {
-        setIsLoading(false);
-        return;
-      }
+      const storedToken = getAccessToken();
+      const storedUser = getCurrentUser();
 
       try {
-        const currentUser =
-          await fetchCurrentUser(
-            storedToken
-          );
+        let activeToken = storedToken;
 
-        setToken(storedToken);
+        if (storedToken && storedUser) {
+          try {
+            await fetchCurrentUser(storedToken);
+          } catch {
+            activeToken = null;
+          }
+        }
+
+        if (!activeToken) {
+          const refreshed = await refreshSession();
+          activeToken = refreshed.access_token;
+
+          const currentUser = await fetchCurrentUser(activeToken);
+
+          if (cancelled) return;
+
+          const authSession: AuthSession = {
+            access_token: activeToken,
+            token_type: refreshed.token_type,
+            user: currentUser,
+          };
+
+          saveSession(authSession, true);
+          setToken(activeToken);
+          setUser(currentUser);
+          return;
+        }
+
+        const currentUser = await fetchCurrentUser(activeToken);
+
+        if (cancelled) return;
+
+        const authSession: AuthSession = {
+          access_token: activeToken,
+          token_type: "bearer",
+          user: currentUser,
+        };
+
+        saveSession(authSession, Boolean(storedToken && storedUser));
+        setToken(activeToken);
         setUser(currentUser);
       } catch {
-        clearSession();
+        if (cancelled) return;
 
+        clearSession();
         setToken(null);
         setUser(null);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
     restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // =====================================================
@@ -227,9 +264,12 @@ export function AuthProvider({
 
   function logout() {
     clearSession();
-
     setToken(null);
     setUser(null);
+
+    void logoutApi().catch(() => {
+      // Local logout is complete even if the server is unreachable.
+    });
   }
 
   return (

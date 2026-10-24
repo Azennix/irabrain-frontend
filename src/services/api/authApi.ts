@@ -25,6 +25,7 @@ export async function login(
 ): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -316,4 +317,38 @@ export async function resendVerification(
   }
 
   return response.json();
+}
+// =====================================================
+// REFRESH SESSION
+// =====================================================
+
+export async function refreshSession(): Promise<{ access_token: string; token_type: string }> {
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Session refresh failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// =====================================================
+// LOGOUT
+// =====================================================
+
+export async function logoutApi(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Logout failed: ${response.status}`);
+  }
 }
