@@ -403,12 +403,12 @@ useEffect(() => {
 
   const LARGE_PASTE_THRESHOLD = 600;
 
-  // Normal paste — let the browser handle it normally.
+  // Normal paste â€” let the browser handle it normally.
   if (pastedText.length < LARGE_PASTE_THRESHOLD) {
     return;
   }
 
-  // Large paste — handle it as a separate pasted-content item.
+  // Large paste â€” handle it as a separate pasted-content item.
   event.preventDefault();
 
   const textarea = event.currentTarget;
@@ -640,7 +640,7 @@ async function prepareAttachments(): Promise<BrainAttachment[]> {
 }
 
   // ---------------------------------------------------
-  // HOME → CREATE CONVERSATION
+  // HOME â†’ CREATE CONVERSATION
   // ---------------------------------------------------
 
   if (
@@ -661,7 +661,7 @@ async function prepareAttachments(): Promise<BrainAttachment[]> {
   }
 
   // ---------------------------------------------------
-  // CHAT → CREATE CONVERSATION FOR FIRST MESSAGE
+  // CHAT â†’ CREATE CONVERSATION FOR FIRST MESSAGE
   // ---------------------------------------------------
 
   if (
@@ -925,8 +925,18 @@ if (guestMode) {
         role: "ira",
         content: response,
       });
+    },
+    (visual) => {
+      if (!streamingMessageId) return;
+
+      onMessage({
+        id: streamingMessageId,
+        role: "ira",
+        content: response,
+        visual,
+      });
     }
-  );
+);
 }
 
 await refreshBalance();
@@ -1087,7 +1097,7 @@ window.dispatchEvent(
 
               <div className="text-[11px] text-[var(--muted)]">
                 {pastedContent.characterCount.toLocaleString()}{" "}
-                characters ·{" "}
+                characters Â·{" "}
                 {pastedContent.lineCount.toLocaleString()} lines
               </div>
             </div>
