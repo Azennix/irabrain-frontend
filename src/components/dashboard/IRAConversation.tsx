@@ -11,6 +11,7 @@ import type { IRAState, Message } from "./types";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { submitResponseFeedback } from "@/services/api/responseFeedbackApi";
 import IRAVisualRenderer from "./IRAVisualRenderer";
+import IRAMarkdown from "./markdown/IRAMarkdown";
 
 interface IRAConversationProps {
   messages: Message[];
@@ -253,42 +254,49 @@ useEffect(() => {
                   
 
     
+{(isUser || !message.visual) && (
+  <div className="min-w-0">
+    {isUser ? (
+      <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[#EEE3D1] sm:text-base">
+        {message.content}
+      </p>
+    ) : (
+      
+      <IRAMarkdown content={message.content} />
+    )}
 
-                  {(isUser || !message.visual) && (
-  <p className="whitespace-pre-wrap text-sm leading-6 text-[#EEE3D1] sm:text-base">
-    {message.content}
     {/* BRAIN RECHARGE ACTION */}
-
-{!isUser &&
-  workspaceMode === "personal" &&
-  onOpenRecharge &&
-  (
-    message.content.includes(
-      "Explore your Brain Recharge options"
-    ) ||
-    message.content.includes(
-      "Explore Brain Recharge options"
-    )
-  ) && (
-    <button
-      type="button"
-      onClick={onOpenRecharge}
-      className="
-        mt-3 inline-flex items-center gap-2
-        rounded-lg border border-[#EEE3D1]/15
-        px-3 py-2
-        text-xs font-medium text-[#EEE3D1]/80
-        transition-colors
-        hover:bg-[#EEE3D1]/[0.06]
-        hover:text-[#EEE3D1]
-      "
-    >
-      Explore Brain Recharge
-      <span aria-hidden="true">→</span>
-    </button>
-  )}
-                  </p>
-                  )}
+    {!isUser &&
+      workspaceMode === "personal" &&
+      onOpenRecharge &&
+      (
+        message.content.includes(
+          "Explore your Brain Recharge options"
+        ) ||
+        message.content.includes(
+          "Explore Brain Recharge options"
+        )
+      ) && (
+        <button
+          type="button"
+          onClick={onOpenRecharge}
+          className="
+            mt-3 inline-flex items-center gap-2
+            rounded-lg border border-[#EEE3D1]/15
+            px-3 py-2
+            text-xs font-medium text-[#EEE3D1]/80
+            transition-colors
+            hover:bg-[#EEE3D1]/[0.06]
+            hover:text-[#EEE3D1]
+          "
+        >
+          Explore Brain Recharge
+          <span aria-hidden="true">→</span>
+        </button>
+      )}
+  </div>
+)}
+                 
 
                   {!isUser && message.visual && (
     <IRAVisualRenderer visual={message.visual} content={message.content} />
