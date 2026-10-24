@@ -66,7 +66,15 @@ export interface BrainAttachment {
 export interface ConversationMessage {
   id: number;
   role: "user" | "assistant";
-  content: string;
+  content: string;
+
+  attachments?: Array<{
+    type: string;
+    name?: string | null;
+    mime_type?: string | null;
+    page_count?: number | null;
+    status?: string | null;
+  }> | null;
   visual_data?: import('@/components/dashboard/types').VisualPayload | null;
 }
 

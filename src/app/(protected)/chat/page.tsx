@@ -159,6 +159,11 @@ export default function ChatPage() {
                 ? "ira"
                 : "user",
             content: message.content,
+            attachments: Array.isArray(message.attachments) ? message.attachments.map((a) => ({
+              type: a.type === "pasted_text" ? "pasted_text" as const : a.type === "image" ? "image" as const : "file_upload" as const,
+              name: a.name ?? undefined,
+              mimeType: a.mime_type ?? undefined,
+            })) : undefined,
             visual: message.visual_data ?? undefined,
           }));
 
@@ -387,6 +392,11 @@ response = await sendMessageToIRAStream(
               : "user",
 
           content: message.content,
+            attachments: Array.isArray(message.attachments) ? message.attachments.map((a) => ({
+              type: a.type === "pasted_text" ? "pasted_text" as const : a.type === "image" ? "image" as const : "file_upload" as const,
+              name: a.name ?? undefined,
+              mimeType: a.mime_type ?? undefined,
+            })) : undefined,
             visual: message.visual_data ?? undefined,
         }));
 

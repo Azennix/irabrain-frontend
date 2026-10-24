@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import type {
@@ -48,14 +48,14 @@ function EdgeLabel({ edge }: { edge: VisualEdge }) {
         </span>
       )}
       <span aria-hidden="true" className="text-xl text-[#EEE3D1]/60">
-        ↓
+        â†“
       </span>
     </div>
   );
 }
 
 export default function IRAVisualRenderer({ visual, content = "" }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [textExpanded, setTextExpanded] = useState(false);
 
   const nodes = visual.nodes ?? [];
@@ -85,7 +85,7 @@ export default function IRAVisualRenderer({ visual, content = "" }: Props) {
           </p>
         </div>
         <span className="shrink-0 text-xl text-[#EEE3D1]/70" aria-hidden="true">
-          {expanded ? "−" : "+"}
+          {expanded ? "âˆ’" : "+"}
         </span>
       </button>
 
@@ -174,9 +174,9 @@ export default function IRAVisualRenderer({ visual, content = "" }: Props) {
                           className="break-words text-sm text-[#EEE3D1]/75"
                         >
                           {nodeById.get(edge.from)?.label ?? edge.from}
-                          {" → "}
+                          {" â†’ "}
                           {nodeById.get(edge.to)?.label ?? edge.to}
-                          {edge.label ? ` · ${edge.label}` : ""}
+                          {edge.label ? ` Â· ${edge.label}` : ""}
                         </p>
                       ))}
                     </div>
@@ -272,7 +272,7 @@ export default function IRAVisualRenderer({ visual, content = "" }: Props) {
               {textExpanded ? "Hide Text Response" : "View Text Response"}
             </span>
             <span aria-hidden="true">
-              {textExpanded ? "−" : "+"}
+              {textExpanded ? "âˆ’" : "+"}
             </span>
           </button>
 

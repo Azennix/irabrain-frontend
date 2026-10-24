@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   ArrowUp,
@@ -403,12 +403,12 @@ useEffect(() => {
 
   const LARGE_PASTE_THRESHOLD = 600;
 
-  // Normal paste â€” let the browser handle it normally.
+  // Normal paste Ã¢â‚¬â€ let the browser handle it normally.
   if (pastedText.length < LARGE_PASTE_THRESHOLD) {
     return;
   }
 
-  // Large paste â€” handle it as a separate pasted-content item.
+  // Large paste Ã¢â‚¬â€ handle it as a separate pasted-content item.
   event.preventDefault();
 
   const textarea = event.currentTarget;
@@ -640,7 +640,7 @@ async function prepareAttachments(): Promise<BrainAttachment[]> {
 }
 
   // ---------------------------------------------------
-  // HOME â†’ CREATE CONVERSATION
+  // HOME Ã¢â€ â€™ CREATE CONVERSATION
   // ---------------------------------------------------
 
   if (
@@ -661,7 +661,7 @@ async function prepareAttachments(): Promise<BrainAttachment[]> {
   }
 
   // ---------------------------------------------------
-  // CHAT â†’ CREATE CONVERSATION FOR FIRST MESSAGE
+  // CHAT Ã¢â€ â€™ CREATE CONVERSATION FOR FIRST MESSAGE
   // ---------------------------------------------------
 
   if (
@@ -1022,6 +1022,16 @@ window.dispatchEvent(
     clearTimeout(stateTimer5);
 
     setPastedContent(null);
+    
+    // ATTACHMENT_CHIP_CLEANUP_V3: clear submitted files from composer.
+    setAttachments([]);
+    // ATTACHMENT_CHIP_CLEANUP_V2: clear composer attachments after submission.
+    setAttachments((current) => {
+      current.forEach((item) => {
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      });
+      return [];
+    });
 
     if (conversationId) {
       clearPendingConversation(
@@ -1097,7 +1107,7 @@ window.dispatchEvent(
 
               <div className="text-[11px] text-[var(--muted)]">
                 {pastedContent.characterCount.toLocaleString()}{" "}
-                characters Â·{" "}
+                characters Ã‚Â·{" "}
                 {pastedContent.lineCount.toLocaleString()} lines
               </div>
             </div>
@@ -1651,3 +1661,5 @@ transition: "stroke-dashoffset 500ms ease",
     </section>
   );
 }
+
+
