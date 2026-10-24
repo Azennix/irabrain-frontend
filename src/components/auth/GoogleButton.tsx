@@ -104,6 +104,7 @@ export default function GoogleButton() {
         }
 
         const apiResponse = await fetch(`${API_BASE_URL}/auth/google`, {
+          credentials: "include",
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ credential }),
