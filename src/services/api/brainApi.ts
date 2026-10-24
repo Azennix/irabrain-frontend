@@ -66,7 +66,8 @@ export interface BrainAttachment {
 export interface ConversationMessage {
   id: number;
   role: "user" | "assistant";
-  content: string;
+  content: string;
+  visual_data?: import('@/components/dashboard/types').VisualPayload | null;
 }
 
 export interface ConversationSummary {

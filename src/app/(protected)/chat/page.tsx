@@ -159,6 +159,7 @@ export default function ChatPage() {
                 ? "ira"
                 : "user",
             content: message.content,
+            visual: message.visual_data ?? undefined,
           }));
 
         const lastMessage =
@@ -386,6 +387,7 @@ response = await sendMessageToIRAStream(
               : "user",
 
           content: message.content,
+            visual: message.visual_data ?? undefined,
         }));
 
       setMessages(

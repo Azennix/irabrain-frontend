@@ -254,7 +254,8 @@ useEffect(() => {
 
     
 
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-[#EEE3D1] sm:text-base">
+                  {(isUser || !message.visual) && (
+  <p className="whitespace-pre-wrap text-sm leading-6 text-[#EEE3D1] sm:text-base">
     {message.content}
     {/* BRAIN RECHARGE ACTION */}
 
@@ -287,8 +288,9 @@ useEffect(() => {
     </button>
   )}
                   </p>
+                  )}
 
-{!isUser && message.visual && (
+                  {!isUser && message.visual && (
     <IRAVisualRenderer visual={message.visual} />
 )}
 
