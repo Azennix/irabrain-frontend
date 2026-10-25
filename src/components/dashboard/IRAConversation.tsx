@@ -44,6 +44,9 @@ export default function IRAConversation({
  const bottomRef = useRef<HTMLDivElement | null>(null);
 const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 const shouldAutoScrollRef = useRef(true);
+const prevSendingRef = useRef(false);
+const knownBeforeSendRef = useRef<Set<string>>(new Set());
+const liveIdsRef = useRef<Set<string>>(new Set());
 
 useEffect(() => {
   const container = scrollContainerRef.current;
@@ -108,7 +111,20 @@ useEffect(() => {
 }
 
 
+// sending start ayinappudu, appatike unna messages (history) ni note chey
+if (isSending && !prevSendingRef.current) {
+  knownBeforeSendRef.current = new Set(messages.map((m) => m.id));
+}
+prevSendingRef.current = isSending;
 
+// sending lo kotta vachina IRA messages = live
+if (isSending) {
+  messages.forEach((m) => {
+    if (m.role !== "user" && !knownBeforeSendRef.current.has(m.id)) {
+      liveIdsRef.current.add(m.id);
+    }
+  });
+}
 
   if (messages.length === 0 && !isSending && !error) {
     return null;
@@ -299,7 +315,10 @@ useEffect(() => {
                  
 
                   {!isUser && message.visual && (
-    <IRAVisualRenderer visual={message.visual} content={message.content} />
+              <IRAVisualRenderer visual={message.visual}
+             content={message.content}
+                   defaultOpen={liveIdsRef.current.has(message.id)}
+ />
 )}
 
 

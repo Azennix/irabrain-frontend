@@ -10,6 +10,7 @@ interface BrainChatResponse {
 
 interface GuestChatResponse {
   response: string;
+  visual?: VisualPayload | null;
   turns_used: number;
   turns_remaining: number;
 }

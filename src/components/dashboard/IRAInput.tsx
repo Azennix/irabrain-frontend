@@ -44,6 +44,7 @@ import {
   updatePendingConversationState,
   clearPendingConversation,
 } from "@/lib/chat/pendingConversationStore";
+import IRAAuth from "@/components/auth/IRAAuth";
 
 import {
   getGuestSessionId,
@@ -199,6 +200,7 @@ const fileInputRef =
   useState(false);
   const [brainRechargeOpen, setBrainRechargeOpen] =
   useState(false);
+  const [loginPopupOpen, setLoginPopupOpen] = useState(false);
   const attachmentMenuRef = useRef<HTMLFormElement>(null);
 
 
@@ -888,6 +890,7 @@ const userMessage: Message = {
   let streamingMessageId: string | null = null;
   let streamStarted = false;
   let response = "";
+  let guestVisual: Message["visual"] | undefined;
   try {
     const preparedAttachments =
   await prepareAttachments();
@@ -895,13 +898,14 @@ const userMessage: Message = {
 let response = "";
 
 if (guestMode) {
-  response = (
-    await sendGuestMessageToIRA(
-      trimmedQuery,
-      getGuestSessionId(),
-      getGuestDeviceId()
-    )
-  ).response;
+  const guestRes = await sendGuestMessageToIRA(
+    trimmedQuery,
+    getGuestSessionId(),
+    getGuestDeviceId()
+  );
+
+  response = guestRes.response;
+  guestVisual = (guestRes as any).visual ?? undefined;
 } else {
   streamingMessageId = createId();
 
@@ -953,6 +957,7 @@ if (guestMode) {
     id: createId(),
     role: "ira",
     content: response,
+    ...(guestVisual ? { visual: guestVisual } : {}),
   };
 
   onMessage(iraMessage);
@@ -1056,7 +1061,20 @@ window.dispatchEvent(
     ? "fixed inset-x-0 bottom-0 z-40 w-full bg-[var(--background)] px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 md:static md:px-6 md:pb-4 md:pt-3"
     : "fixed inset-x-0 bottom-0 z-40 w-full bg-[var(--background)] px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 md:static md:mx-auto md:px-10 md:pb-6 md:pt-3"
 }
-    >
+    >{guestMode && conversationStarted && !isBusy && (
+    <div className="mx-auto mb-2 flex w-full max-w-3xl items-center justify-between gap-3 rounded-xl border border-[#EEE3D1]/10 bg-[#EEE3D1]/[0.04] px-3.5 py-2.5">
+      <p className="text-[12px] leading-5 text-[#EEE3D1]/60">
+        <span className="text-orange-300">✦</span> Want flowcharts, concept maps and visual explanations  and access the persistance memory? Login to unlock.
+      </p>
+
+      <button
+  type="button"
+  onClick={() => setLoginPopupOpen(true)}
+  className="shrink-0 rounded-full border border-orange-400/40 bg-orange-400/10 px-3 py-1 text-[12px] font-medium text-orange-300 transition hover:bg-orange-400/20"
+>
+  Login
+</button>    </div>
+  )}
         <form
         ref={attachmentMenuRef}
   onSubmit={handleSubmit}
@@ -1658,6 +1676,29 @@ transition: "stroke-dashoffset 500ms ease",
     }
   }}
 />
+{loginPopupOpen && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+    {/* backdrop: click chesthe close */}
+    <div
+      className="absolute inset-0 bg-black/55 backdrop-blur-md"
+      onClick={() => setLoginPopupOpen(false)}
+    />
+
+    <div className="relative z-10 w-full max-w-[440px] overflow-hidden rounded-2xl border border-[#EEE3D1]/10 bg-[#171716] px-7 py-8 shadow-[0_30px_100px_rgba(0,0,0,0.6)]">
+      {/* close button */}
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={() => setLoginPopupOpen(false)}
+        className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-[#EEE3D1]/45 transition hover:bg-[#EEE3D1]/[0.06] hover:text-[#EEE3D1]"
+      >
+        <X size={16} />
+      </button>
+
+      <IRAAuth />
+    </div>
+  </div>
+)}
     </section>
   );
 }
