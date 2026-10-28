@@ -1,11 +1,12 @@
 "use client";
 
 import {
+  Bot,
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
+import type { InstantAck } from "@/lib/instantAck";
 import IRABrainThinking from "./IRABrainThinking";
 import type { IRAState, Message } from "./types";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -21,6 +22,7 @@ interface IRAConversationProps {
   conversationId?: string;
   workspaceMode?: "personal" | "private";
   onOpenRecharge?: () => void;
+  ack?: InstantAck | null;
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 
 }
@@ -30,26 +32,28 @@ type FeedbackValue = "like" | "dislike";
 export default function IRAConversation({
   messages,
   isSending,
-  iraState = "thinking",
+  iraState = "analyzing",
   error,
   conversationId,
   workspaceMode = "personal",
   onOpenRecharge,
+  ack,
+  scrollContainerRef: providedScrollContainerRef,
 }: IRAConversationProps) {
    const { token } = useAuth();
   const [feedback, setFeedback] = useState<
     Record<string, FeedbackValue>
   >({});
 
- const bottomRef = useRef<HTMLDivElement | null>(null);
-const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-const shouldAutoScrollRef = useRef(true);
 const prevSendingRef = useRef(false);
 const knownBeforeSendRef = useRef<Set<string>>(new Set());
 const liveIdsRef = useRef<Set<string>>(new Set());
 
+const bottomRef = useRef<HTMLDivElement | null>(null);
+const shouldAutoScrollRef = useRef(true);
+
 useEffect(() => {
-  const container = scrollContainerRef.current;
+  const container = providedScrollContainerRef?.current;
 
   if (!container) return;
 
@@ -59,7 +63,9 @@ useEffect(() => {
       container.scrollTop -
       container.clientHeight;
 
-    shouldAutoScrollRef.current = distanceFromBottom < 100;
+    // Continue following new messages if the user is
+    // already near the bottom.
+    shouldAutoScrollRef.current = distanceFromBottom < 120;
   };
 
   container.addEventListener("scroll", handleScroll, {
@@ -69,15 +75,41 @@ useEffect(() => {
   return () => {
     container.removeEventListener("scroll", handleScroll);
   };
-}, []);
+}, [providedScrollContainerRef]);
 
 useEffect(() => {
-  const container = scrollContainerRef.current;
+  // Always follow a newly submitted user message.
+  const lastMessage = messages[messages.length - 1];
 
-  if (!container || !shouldAutoScrollRef.current) return;
+  const isNewUserMessage =
+    lastMessage?.role === "user" && isSending;
 
-  container.scrollTop = container.scrollHeight;
-}, [messages, isSending]);
+  if (!shouldAutoScrollRef.current && !isNewUserMessage) {
+    return;
+  }
+
+  const frame = requestAnimationFrame(() => {
+    const container = providedScrollContainerRef?.current;
+
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+    } else {
+      // Fallback when no scroll container ref is supplied.
+      bottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    }
+  });
+
+  return () => cancelAnimationFrame(frame);
+}, [messages, isSending, providedScrollContainerRef]);
+
+
+
 
   async function handleFeedback(
   messageId: string,
@@ -114,6 +146,7 @@ useEffect(() => {
 // sending start ayinappudu, appatike unna messages (history) ni note chey
 if (isSending && !prevSendingRef.current) {
   knownBeforeSendRef.current = new Set(messages.map((m) => m.id));
+  
 }
 prevSendingRef.current = isSending;
 
@@ -158,15 +191,27 @@ if (isSending) {
                       : "max-w-[94%] px-0.5 py-1 sm:max-w-[82%]"
                   }
                 >
-                  <p
-                    className={`mb-1.5 text-[9px] uppercase tracking-[0.2em] ${
-                      isUser
-                        ? "text-[#EEE3D1]/35"
-                        : "text-[#EEE3D1]/40"
-                    }`}
-                  >
-                    {isUser ? "You" : "IRA"}
-                  </p>
+                  <div
+  className={`mb-2 flex items-center gap-1.5 text-[9px] uppercase tracking-[0.2em] ${
+    isUser
+      ? "text-[#EEE3D1]/35"
+      : "text-[#EEE3D1]/45"
+  }`}
+>
+  {isUser ? (
+    <span>You</span>
+  ) : (
+    <>
+      <Bot
+        size={12}
+        strokeWidth={1.6}
+        className="shrink-0 text-[#EEE3D1]/65"
+        aria-hidden="true"
+      />
+      <span>IRA</span>
+    </>
+  )}
+</div>
 
                   {/* MESSAGE ATTACHMENTS */}
 
@@ -270,56 +315,46 @@ if (isSending) {
                   
 
     
-{(isUser || !message.visual) && (
-  <div className="min-w-0">
-    {isUser ? (
-      <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[#EEE3D1] sm:text-base">
-        {message.content}
-      </p>
-    ) : (
+
+  {/* TEXT + VISUAL - BOTH OUTSIDE, SEPARATE */}
+<div className="min-w-0">
+  {isUser ? (
+    <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[#EEE3D1] sm:text-base">
+      {message.content}
+    </p>
+  ) : (
+    <>
       
+      {/* TEXT VIEW - ALWAYS SHOW, plain outside */}
       <IRAMarkdown content={message.content} />
-    )}
 
-    {/* BRAIN RECHARGE ACTION */}
-    {!isUser &&
-      workspaceMode === "personal" &&
-      onOpenRecharge &&
-      (
-        message.content.includes(
-          "Explore your Brain Recharge options"
-        ) ||
-        message.content.includes(
-          "Explore Brain Recharge options"
-        )
-      ) && (
-        <button
-          type="button"
-          onClick={onOpenRecharge}
-          className="
-            mt-3 inline-flex items-center gap-2
-            rounded-lg border border-[#EEE3D1]/15
-            px-3 py-2
-            text-xs font-medium text-[#EEE3D1]/80
-            transition-colors
-            hover:bg-[#EEE3D1]/[0.06]
-            hover:text-[#EEE3D1]
-          "
-        >
-          Explore Brain Recharge
-          <span aria-hidden="true">→</span>
-        </button>
+      {/* BRAIN RECHARGE ACTION */}
+      {workspaceMode === "personal" &&
+        onOpenRecharge &&
+        (message.content.includes("Explore your Brain Recharge options") ||
+          message.content.includes("Explore Brain Recharge options")) && (
+          <button
+            type="button"
+            onClick={onOpenRecharge}
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[#EEE3D1]/15 px-3 py-2 text-xs font-medium text-[#EEE3D1]/80 transition-colors hover:bg-[#EEE3D1]/[0.06] hover:text-[#EEE3D1]"
+          >
+            Explore Brain Recharge <span aria-hidden="true">→</span>
+          </button>
+        )}
+
+      {/* VISUAL - CARDLIKE, BELOW TEXT */}
+      {message.visual && (
+        <div className="mt-4 animate-in fade-in duration-300">
+          <IRAVisualRenderer
+            visual={message.visual}
+            defaultOpen={liveIdsRef.current.has(message.id)}
+          />
+        </div>
       )}
-  </div>
-)}
+    </>
+  )}
+</div>
                  
-
-                  {!isUser && message.visual && (
-              <IRAVisualRenderer visual={message.visual}
-             content={message.content}
-                   defaultOpen={liveIdsRef.current.has(message.id)}
- />
-)}
 
 
                   {/* IRA RESPONSE FEEDBACK */}
@@ -378,13 +413,44 @@ if (isSending) {
             );
           })}
 
+                    {!isSending && ack?.willVisual && (() => {
+            const last = messages[messages.length - 1];
+            if (!last || last.role === "user" || last.visual) return null;
+            return (
+              <div className="flex items-center gap-2 pl-0.5 text-[12.5px] text-[#EEE3D1]/50">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#8A0303]" />
+                Preparing visual based on your question…
+              </div>
+            );
+          })()}
+
           {/* IRA THINKING */}
 
-          {isSending && (
-            <div className="flex justify-start">
-              <IRABrainThinking state={iraState} />
-            </div>
-          )}
+                            {isSending && (() => {
+            const last = messages[messages.length - 1];
+            const streaming = !!last && last.role !== "user";
+            if (streaming) return null;
+            return (
+              <div className="flex w-full justify-start">
+                <div className="max-w-[94%] px-0.5 py-1 sm:max-w-[82%]">
+                  <p className="mb-1.5 text-[9px] uppercase tracking-[0.2em] text-[#EEE3D1]/40">
+                    IRA
+                  </p>
+                  <div className="mt-1">
+                    <IRABrainThinking state={iraState} />
+                  </div>
+
+                  {ack && (
+                    <p className="animate-in fade-in text-sm leading-6 text-[#EEE3D1]/80 duration-300 sm:text-base">
+                      {ack.text}
+                    </p>
+                  )}
+
+                  
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ERROR */}
 

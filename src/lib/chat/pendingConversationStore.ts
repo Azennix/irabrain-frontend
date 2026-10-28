@@ -77,7 +77,7 @@ export function notifyConversationChange() {
 export function setPendingConversation(
   conversationId: string,
   message: Message,
-  state: IRAState = "thinking",
+  state: IRAState = "analyzing",
   attachments: BrainAttachment[] = []
 ) {
   completedConversations.delete(

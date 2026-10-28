@@ -1,167 +1,77 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import type { IRAState } from "./types";
 
-
-
-interface IRABrainThinkingProps {
+interface Props {
   state?: IRAState;
 }
 
 const stateLabels: Record<IRAState, string> = {
-  thinking: "Thinking...",
+  analyzing: "Analyzing message...",
+  retrieving: "Retrieving memories...",
+  memorizing: "Memorizing context...",
+  tool_checking: "Checking tools...",
+  tool_executing: "Executing tools...",
+  routing: "Routing intelligence...",
+  translating: "Detecting language...",
   reasoning: "Reasoning...",
-  retrieving: "Retrieving...",
-  brainstorming: "Brainstorming...",
-  connecting: "Connecting ideas...",
-  preparing: "Preparing response...",
+  visualizing: "Visualizing ideas...",
+  composing: "Composing response...",
 };
 
-const stateSequence: IRAState[] = [
-  "thinking",
-  "reasoning",
-  "retrieving",
-  "brainstorming",
-  "connecting",
-  "preparing",
-];
-
-export default function IRABrainThinking({
-  state,
-}: IRABrainThinkingProps) {
-  const [internalState, setInternalState] =
-    useState<IRAState>("thinking");
-
-  useEffect(() => {
-    // If parent controls the state,
-    // don't run the internal state cycle.
-    if (state) {
-      return;
-    }
-
-    let index = 0;
-
-    const timer = setInterval(() => {
-      index = (index + 1) % stateSequence.length;
-
-      setInternalState(stateSequence[index]);
-    }, 1400);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, [state]);
-
-  const currentState = state ?? internalState;
+export default function IRABrainThinking({ state }: Props) {
+  if (!state) return null;
 
   return (
-    <div className="flex items-center gap-3 px-1 py-2">
-      
-      {/* =========================================
-          IRA INTELLIGENCE CORE
-      ========================================= */}
+    <div
+      className="flex items-center gap-3 px-1 py-2"
+      role="status"
+      aria-live="polite"
+    >
+      {/* IRABRAIN INTELLIGENCE CORE */}
+      <div className="ira-core relative flex h-11 w-11 shrink-0 items-center justify-center">
 
-      <div className="relative flex h-9 w-9 items-center justify-center">
+        {/* Ambient energy */}
+        <div className="ira-core-aura absolute inset-1 rounded-full" />
 
-        {/* Subtle glow */}
-        <div
-          className="
-            absolute
-            h-8
-            w-8
-            rounded-full
-            bg-[#EEE3D1]/[0.025]
-            blur-md
-            animate-pulse
-          "
-        />
-
-        {/* Rotating IRABRAIN logo */}
-        <div
-          className="
-            relative
-            flex
-            h-8
-            w-8
-            items-center
-            justify-center
-            animate-[spin_5s_linear_infinite]
-          "
-        >
-          <Image
-            src="/irabrain-logo.png"
-            alt="IRABRAIN"
-            width={25}
-            height={25}
-            priority
-            className="object-contain"
-          />
+        {/* Outer orbital ring */}
+        <div className="ira-orbit ira-orbit-outer absolute inset-0 rounded-full">
+          <span className="ira-orbit-point" />
         </div>
 
+        {/* Inner orbital ring */}
+        <div className="ira-orbit ira-orbit-inner absolute rounded-full">
+          <span className="ira-orbit-point" />
+        </div>
+
+        {/* Existing brand logo */}
+       <div className="ira-core-logo relative z-10 flex h-7 w-7 items-center justify-center">
+  <span className="ira-metallic-logo">
+    <Image
+      src="/irabrain-logo.png"
+      alt="IRABRAIN"
+      width={25}
+      height={25}
+      priority
+      className="object-contain"
+    />
+  </span>
+</div>
+
+        {/* Tiny intelligence signal */}
+        <span className="ira-core-signal absolute right-[2px] top-[5px]" />
       </div>
 
-      {/* =========================================
-          IRA STATE
-      ========================================= */}
-
-      <div className="flex items-center">
-
-        <span
-          className="
-            text-xs
-            text-[#EEE3D1]/40
-            transition-opacity
-            duration-300
-          "
-        >
-          {stateLabels[currentState]}
-        </span>
-
-        {/* Processing dots */}
-        <span className="ml-1.5 flex items-center gap-1">
-
-          <span
-            className="
-              h-1
-              w-1
-              rounded-full
-              bg-[#EEE3D1]/35
-              animate-pulse
-            "
-          />
-
-          <span
-            className="
-              h-1
-              w-1
-              rounded-full
-              bg-[#EEE3D1]/35
-              animate-pulse
-            "
-            style={{
-              animationDelay: "180ms",
-            }}
-          />
-
-          <span
-            className="
-              h-1
-              w-1
-              rounded-full
-              bg-[#EEE3D1]/35
-              animate-pulse
-            "
-            style={{
-              animationDelay: "360ms",
-            }}
-          />
-
-        </span>
-
-      </div>
-
+      {/* LIVE PIPELINE STATE */}
+      <div className="min-w-0">
+  <span
+    key={state}
+    className="ira-state-label ira-state-loading text-xs"
+  >
+    {stateLabels[state]}
+  </span>
+</div>
     </div>
   );
 }

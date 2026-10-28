@@ -29,7 +29,7 @@ export default function Home() {
     useState(false);
 
   const [iraState, setIRAState] =
-    useState<IRAState>("thinking");
+    useState<IRAState>("analyzing");
 
   const { token } = useAuth();
   const router = useRouter();
@@ -72,7 +72,7 @@ export default function Home() {
     setPendingConversation(
       conversation.conversation_id,
       firstMessage,
-      "thinking"
+      "analyzing"
     );
 
     // Keep the message available for the existing flow.
@@ -88,7 +88,7 @@ export default function Home() {
   } catch (error) {
     console.error("Failed to create conversation:", error);
     setIsSending(false);
-    setIRAState("thinking");
+    setIRAState("analyzing");
   }
 }
 

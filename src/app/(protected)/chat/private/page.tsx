@@ -107,7 +107,7 @@ export default function PrivateChatPage() {
     useState(false);
 
   const [iraState, setIRAState] =
-    useState<IRAState>("thinking");
+    useState<IRAState>("analyzing");
 
   useEffect(() => {
   setWorkspaceMode("private");

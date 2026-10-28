@@ -12,7 +12,7 @@ interface IRAMarkdownProps { content: string; }
 const SERIF = { fontFamily: "'Instrument Serif', 'Playfair Display', Georgia, serif" };
 const MONO = { fontFamily: "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace" };
 
-const ACCENTS = ["#FF8A2B", "#A3E635", "#38BDF8", "#F472B6", "#A78BFA", "#FBBF24"];
+const ACCENTS = ["#8A0303", "#8A0303", "#8A0303", "#8A0303", "#8A0303", "#8A0303"];
 
 /* ---------- helpers ---------- */
 const getText = (node: any): string =>
@@ -153,23 +153,31 @@ const MD = ({ children }: { children: string }) => (
 );
 
 /* ---------- the card (image-1 style) ---------- */
-const Card = ({ index, accent, label, title, body }: { index: number; accent: string; label: string; title?: string; body: string }) => (
-  <section
-    className="relative mb-5 overflow-hidden rounded-[22px] border border-[#EEE3D1]/[0.07] bg-[#1b1916] py-6 pl-7 pr-6"
-    style={{ ["--accent" as any]: accent, borderLeft: `4px solid ${accent}` }}
-  >
-    
-   
-    {/* label */}
-    <div className="mb-2 flex items-center gap-2.5">
-      <span className="h-2.5 w-2.5 rounded-full" style={{ background: accent }} />
-      <span className="text-[12px] font-medium uppercase tracking-[0.22em]" style={{ ...MONO, color: accent }}>{label}</span>
-    </div>
+/* ---------- the card - NOW SLIM LINE ONLY, NO CARD ---------- */
+const Card = ({ index, accent, label, title, body }: { index: number; accent: string; label: string; title?: string; body: string }) => {
+  const [open, setOpen] = useState(true);
 
-    
-    <MD>{body}</MD>
-  </section>
-);
+  return (
+    <div className="relative mb-6 border-l-2 border-[#8A0303] pl-5 sm:pl-6">
+      {/* Header with small close */}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#8A0303]" />
+          <span className="text- font-medium uppercase tracking-[0.22em] text-[#8A0303]" style={MONO}>{label}</span>
+        </div>
+        {/* SMALL CLOSE BUTTON - TEXT KI IDHI BRO! */}
+        <button
+          onClick={() => setOpen(!open)}
+          className="flex h-5 w-5 items-center justify-center rounded-md border border-[#EEE3D1]/10 bg-[#EEE3D1]/[0.05] text-[#EEE3D1]/40 hover:bg-[#8A0303]/20 hover:text-[#8A0303] hover:border-[#8A0303]/30 transition"
+        >
+          <span className="text-">{open ? "✕" : "+"}</span>
+        </button>
+      </div>
+      
+      {open && <MD>{body}</MD>}
+    </div>
+  );
+};
 
 /* ---------- main ---------- */
 function IRAMarkdown({ content }: IRAMarkdownProps) {
@@ -203,11 +211,12 @@ function IRAMarkdown({ content }: IRAMarkdownProps) {
           <span className="flex items-center gap-1 text-[#EEE3D1]/50"><Sparkles size={11} /> Action ready</span>
         </div>
         <button
-          onClick={() => { navigator.clipboard.writeText(content); setCopiedAll(true); setTimeout(() => setCopiedAll(false), 1200); }}
-          className="flex items-center gap-1 rounded-full border border-[#EEE3D1]/10 bg-[#EEE3D1]/[0.04] px-3 py-1 text-[12px] text-[#EEE3D1]/50 hover:text-[#EEE3D1]"
-        >
-          {copiedAll ? <Check size={11} /> : <Copy size={11} />} {copiedAll ? "Copied!" : "Copy response"}
-        </button>
+  onClick={() => { navigator.clipboard.writeText(content); setCopiedAll(true); setTimeout(() => setCopiedAll(false), 1200); }}
+  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#EEE3D1]/10 bg-[#EEE3D1]/[0.04] text-[#EEE3D1]/40 hover:bg-[#EEE3D1]/10 hover:text-[#EEE3D1] transition"
+  title={copiedAll ? "Copied!" : "Copy"}
+>
+  {copiedAll ? <Check size={13} /> : <Copy size={13} />}
+</button>
       </div>
 
       {/* eyebrow from "# Title" */}
@@ -224,14 +233,28 @@ function IRAMarkdown({ content }: IRAMarkdownProps) {
       )}
 
       {/* cards */}
-      {sections.length > 0 ? (
-        sections.map((s, i) => (
-          <Card key={i} index={i} accent={ACCENTS[i % ACCENTS.length]} label={s.label} title={s.title} body={s.body} />
-        ))
-      ) : (
-        // no "##" headings (plain answers / lists) -> still one card
-        <Card index={0} accent={ACCENTS[0]} label="Answer" body={intro || content} />
-      )}
+      {/* cards - NOW OUTSIDE, NO CARD BG */}
+{sections.length > 0 ? (
+  <div className="space-y-6">
+    {sections.map((s, i) => (
+      <Card key={i} index={i} accent="#8A0303" label={s.label} title={s.title} body={s.body} />
+    ))}
+  </div>
+) : (
+  // no "##" headings -> plain outside, no card
+  <div className="border-l-2 border-[#8A0303] pl-5">
+    <MD>{intro || content}</MD>
+  </div>
+)}
+{/* SMALL TOAST - BOTTOM, COPY CHESAKA */}
+    {copiedAll && (
+      <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="flex items-center gap-1.5 rounded-full border border-[#EEE3D1]/15 bg-[#1a1917] px-3 py-1.5 shadow-lg">
+          <Check size={12} className="text-[#8A0303]" />
+          <span className="text-[11px] text-[#EEE3D1]/80" style={MONO}>Text copied</span>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

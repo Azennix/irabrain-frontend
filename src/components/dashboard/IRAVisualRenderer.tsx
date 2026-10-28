@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useState, useRef, useLayoutEffect, useMemo } from "react";
+import React, { useState, useRef, useLayoutEffect, useMemo } from "react";
 import {
   ChevronDown, ChevronUp, BookOpen,
   Workflow, Network, ListOrdered, Scale,
@@ -7,14 +7,23 @@ import {
 import type { VisualPayload, VisualNode, VisualEdge } from "./types";
 import IRAMarkdown from "./markdown/IRAMarkdown";
 
-interface Props { visual: VisualPayload; content?: string; defaultOpen?: boolean; }
+interface SingleProps { 
+  visual: VisualPayload; 
+  content?: string; 
+  defaultOpen?: boolean; 
+}
 
+interface Props { 
+  visual: VisualPayload | VisualPayload[]; 
+  content?: string; 
+  defaultOpen?: boolean; 
+}
 const COLOR_MAP: Record<string, string> = {
-  "0": "bg-[#3d2314] border-orange-400/70 text-[#f5d0b0]",
-  "1": "bg-[#162e1a] border-[#8cff3a]/80 text-[#c8f5a8]",
-  "2": "bg-[#0f2d45] border-[#38b6ff]/80 text-[#a6dfff]",
-  "3": "bg-[#34132d] border-[#ff7acc]/80 text-[#ffb3e3]",
-  side: "bg-[#22201e] border-[#EEE3D1]/20 text-[#EEE3D1]/60",
+  "0": "bg-[#000000] border-[#8A0303]/70 text-[#EEE3D1]",
+  "1": "bg-[#171614] border-[#EEE3D1]/25 text-[#EEE3D1]",
+  "2": "bg-[#171614] border-[#EEE3D1]/40 text-[#EEE3D1]",
+  "3": "bg-[#171614] border-[#EEE3D1]/20 text-[#EEE3D1]/85",
+  side: "bg-[#171614] border-[#EEE3D1]/20 text-[#EEE3D1]/70",
 };
 
 const LINE = "rgba(238,227,209,0.45)";
@@ -203,12 +212,186 @@ function StepsList({ steps }: { steps: { title: string; description?: string }[]
   );
 }
 
+/* ---------------- visual-specific layouts ---------------- */
+
+function ConceptMap({ nodes, edges }: { nodes: VisualNode[]; edges: VisualEdge[] }) {
+  const center = nodes.find(n => n.id === (arguments[0] as any).centerNodeId)
+    ?? nodes.find(n => !edges.some(e => e.to === n.id))
+    ?? nodes[0];
+  const others = nodes.filter(n => n.id !== center?.id);
+
+  return (
+    <div className="flex flex-col items-center gap-5 bg-[#000000] px-4 py-8">
+      {center && (
+        <div className="rounded-2xl border border-[#8A0303]/70 bg-[#171614] px-6 py-4 text-center shadow-[0_0_24px_rgba(138,3,3,0.08)]">
+          <p className="text-base font-semibold text-[#EEE3D1]">{center.label}</p>
+          {center.description && <p className="mt-1 text-sm text-[#EEE3D1]/60">{center.description}</p>}
+        </div>
+      )}
+      {others.length > 0 && <div className="h-7 w-px bg-[#EEE3D1]/35" />}
+      <div className="flex w-full flex-wrap justify-center gap-3">
+        {others.map(n => {
+          const relation = edges.find(e =>
+            (e.from === center?.id && e.to === n.id) ||
+            (e.to === center?.id && e.from === n.id)
+          );
+          return (
+            <div key={n.id} className="max-w-[220px] rounded-xl border border-[#EEE3D1]/20 bg-[#171614] px-4 py-3 text-center">
+              {relation?.label && <p className="mb-1 font-mono text-[10px] text-[#EEE3D1]/45">{relation.label}</p>}
+              <p className="text-sm font-medium text-[#EEE3D1]">{n.label}</p>
+              {n.description && <p className="mt-1 text-xs text-[#EEE3D1]/55">{n.description}</p>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function HierarchyView({ nodes }: { nodes: VisualNode[] }) {
+  const roots = nodes.filter(n => !n.parentId || !nodes.some(p => p.id === n.parentId));
+  const children = (id: string) => nodes.filter(n => n.parentId === id);
+
+  const branch = (node: VisualNode, depth = 0): React.ReactNode => (
+    <div key={node.id} className="flex flex-col items-center">
+      <div className={`max-w-[220px] rounded-xl border px-4 py-3 text-center ${depth === 0 ? "border-[#8A0303]/60 bg-[#171614]" : "border-[#EEE3D1]/20 bg-[#000000]"}`}>
+        <p className="text-sm font-semibold text-[#EEE3D1]">{node.label}</p>
+        {node.description && <p className="mt-1 text-xs text-[#EEE3D1]/55">{node.description}</p>}
+      </div>
+      {children(node.id).length > 0 && (
+        <>
+          <div className="h-6 w-px bg-[#EEE3D1]/35" />
+          <div className="flex flex-wrap items-start justify-center gap-4 border-t border-[#EEE3D1]/20 pt-4">
+            {children(node.id).map(child => branch(child, depth + 1))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  return <div className="flex flex-wrap justify-center gap-8 overflow-x-auto bg-[#000000] px-4 py-8">{roots.map(root => branch(root))}</div>;
+}
+
+function TimelineView({ events }: { events: { title: string; date?: string; description?: string }[] }) {
+  return (
+    <div className="bg-[#000000] px-5 py-7">
+      {events.map((event, i) => (
+        <div key={`${event.title}-${i}`} className="relative flex gap-4 pb-7 last:pb-0">
+          {i < events.length - 1 && <div className="absolute left-[7px] top-4 h-full w-px bg-[#EEE3D1]/25" />}
+          <span className="relative mt-1.5 h-4 w-4 shrink-0 rounded-full border border-[#8A0303]/70 bg-[#171614]" />
+          <div className="min-w-0 flex-1 rounded-xl border border-[#EEE3D1]/15 bg-[#171614] p-4">
+            {event.date && <p className="mb-1 font-mono text-[11px] text-[#EEE3D1]/45">{event.date}</p>}
+            <p className="text-sm font-semibold text-[#EEE3D1]">{event.title}</p>
+            {event.description && <p className="mt-1 text-sm text-[#EEE3D1]/60">{event.description}</p>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CycleView({ nodes }: { nodes: VisualNode[] }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-3 bg-[#000000] px-4 py-8">
+      {nodes.map((node, i) => (
+        <React.Fragment key={node.id}>
+          <div className="max-w-[200px] rounded-xl border border-[#EEE3D1]/25 bg-[#171614] px-4 py-3 text-center">
+            <p className="text-sm font-semibold text-[#EEE3D1]">{node.label}</p>
+            {node.description && <p className="mt-1 text-xs text-[#EEE3D1]/55">{node.description}</p>}
+          </div>
+          {i < nodes.length - 1 && <span className="text-[#8A0303]">→</span>}
+        </React.Fragment>
+      ))}
+      {nodes.length > 1 && <span className="text-xs text-[#EEE3D1]/50">↺ back to start</span>}
+    </div>
+  );
+}
+
+function ComparisonView({ columns, comparisons }: {
+  columns: string[];
+  comparisons: { label: string; values: string[] }[];
+}) {
+  // AUTO-FIX: If LLM included "Stage" as column, remove it
+  let normalizedColumns = columns;
+  let normalizedComparisons = comparisons;
+  
+  const firstCol = columns[0]?.toLowerCase() || "";
+  if (["stage", "step", "phase", "aspect", "feature"].includes(firstCol)) {
+    normalizedColumns = columns.slice(1);
+    normalizedComparisons = comparisons.map(row => {
+      if (row.values.length === columns.length) {
+        // Take first N values where N = normalizedColumns.length
+        // This fixes Goal: [Parse..., "I want...", "—"] -> [Parse..., "I want..."]
+        return { ...row, values: row.values.slice(0, normalizedColumns.length) };
+      }
+      return row;
+    });
+  }
+
+  const count = Math.max(normalizedColumns.length, ...normalizedComparisons.map(row => row.values.length), 0);
+  const headers = Array.from({ length: count }, (_, i) => normalizedColumns[i] ?? `Option ${i + 1}`);
+
+  return (
+    <div className="overflow-x-auto bg-[#000000] p-4">
+      <div className="min-w-">
+        <div className="grid gap-2" style={{ gridTemplateColumns: `minmax(110px,0.8fr) repeat(${headers.length},minmax(120px,1fr))` }}>
+          <div className="p-2" />
+          {headers.map((header, i) => (
+            <div key={i} className="rounded-lg border border-[#EEE3D1]/20 bg-[#171614] p-3 text-sm font-semibold text-[#EEE3D1]">{header}</div>
+          ))}
+          {normalizedComparisons.map((row, ri) => (
+            <React.Fragment key={`${row.label}-${ri}`}>
+              <div className="flex items-center border-b border-[#EEE3D1]/10 py-3 text-xs font-semibold text-[#EEE3D1]/65">{row.label}</div>
+              {headers.map((_, i) => (
+                <div key={i} className="border-b border-[#EEE3D1]/10 px-3 py-3 text-sm text-[#EEE3D1]/85">{row.values[i] ?? "—"}</div>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChartView({ chart }: { chart: NonNullable<VisualPayload["chart"]> }) {
+  const values = chart.series.flatMap(series => series.values).filter(Number.isFinite);
+  const max = Math.max(...values, 1);
+
+  return (
+    <div className="space-y-5 bg-[#000000] p-5">
+      {chart.series.map(series => (
+        <div key={series.name}>
+          <p className="mb-2 text-xs font-semibold text-[#EEE3D1]/70">{series.name}</p>
+          <div className="space-y-3">
+            {series.values.map((value, i) => (
+              <div key={`${series.name}-${i}`} className="grid grid-cols-[minmax(60px,0.8fr)_minmax(80px,2fr)_auto] items-center gap-3">
+                <span className="truncate text-xs text-[#EEE3D1]/60">{chart.labels[i] ?? `Item ${i + 1}`}</span>
+                <div className="h-3 overflow-hidden rounded-full bg-[#EEE3D1]/10">
+                  <div className="h-full rounded-full bg-[#EEE3D1]/65" style={{ width: `${Math.max(0, Math.min(100, (value / max) * 100))}%` }} />
+                </div>
+                <span className="font-mono text-xs text-[#EEE3D1]">{value}{chart.unit ? ` ${chart.unit}` : ""}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ---------------- small UI bits ---------------- */
 const TYPE_LABEL: Record<string, string> = {
   flowchart: "Flowchart",
   concept_map: "Concept map",
   steps: "Steps",
   comparison: "Comparison",
+  system_architecture: "System architecture",
+  connection_graph: "Connection graph",
+  hierarchy: "Hierarchy",
+  decision_tree: "Decision tree",
+  cycle: "Cycle",
+  timeline: "Timeline",
+  data_chart: "Data chart",
 };
 
 const Chip = ({ children }: { children: React.ReactNode }) => (
@@ -225,104 +408,117 @@ const Pill = ({ open, openText, closeText }: { open: boolean; openText: string; 
 );
 
 /* ---------------- main ---------------- */
-export default function IRAVisualRenderer({
-  visual,
-  content = "",
-  defaultOpen = false,
-}: Props) {
+/* ---------------- single card (nee old logic yela undo alane) ---------------- */
+// Replace SingleCard definition with this exact line:
+function SingleCard({ visual, defaultOpen = false }: SingleProps) {
   const nodes = visual.nodes ?? [];
   const edges = visual.edges ?? [];
   const steps = visual.steps ?? [];
 
-  const hasDiagram = nodes.length > 0 || steps.length > 0;
+  const hasDiagram =
+    nodes.length > 0 || steps.length > 0 ||
+    !!visual.comparisons?.length || !!visual.timeline?.length || !!visual.chart;
   const bigDiagram = nodes.length > 7;
-
   const [expanded, setExpanded] = useState(hasDiagram && defaultOpen && !bigDiagram);
-  const [textExpanded, setTextExpanded] = useState(!hasDiagram);
 
-  const visualIcon = {
-    flowchart: <Workflow size={22} strokeWidth={1.75} />,
-    concept_map: <Network size={22} strokeWidth={1.75} />,
-    steps: <ListOrdered size={22} strokeWidth={1.75} />,
-    comparison: <Scale size={22} strokeWidth={1.75} />,
-  }[visual.type] ?? <Workflow size={22} strokeWidth={1.75} />;
+  if (!hasDiagram) return null;
 
-  // short plain-text preview of the explanation
-  const preview = content
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/[#*`>\[\]_]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 110);
+  const count = nodes.length || steps.length || visual.comparisons?.length || visual.timeline?.length || 0;
 
+  const iconMap: Record<string, React.ReactNode> = {
+  concept_map: <Network size={18} strokeWidth={1.75} />,
+  connection_graph: <Network size={18} strokeWidth={1.75} />,
+  hierarchy: <Network size={18} strokeWidth={1.75} />,
+  steps: <ListOrdered size={18} strokeWidth={1.75} />,
+  timeline: <ListOrdered size={18} strokeWidth={1.75} />,
+  comparison: <Scale size={18} strokeWidth={1.75} />,
+  data_chart: <Scale size={18} strokeWidth={1.75} />,
+};
+
+const visualIcon = iconMap[visual.type as string] ?? (
+  <Workflow size={18} strokeWidth={1.75} />
+);
   return (
-    <section className="my-4 w-full max-w-2xl overflow-hidden rounded-2xl border border-[#EEE3D1]/15 bg-[#171614] shadow-lg shadow-black/20">
-      {/* ===== diagram header ===== */}
+    <section className="w-full">
       <button
         onClick={() => setExpanded(v => !v)}
-        className="group flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-[#EEE3D1]/[0.03]"
+        className="group flex w-full items-center gap-3 border-l-2 border-[#8A0303] py-1 pl-3 text-left"
       >
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-orange-400/30 bg-orange-400/10 text-orange-300">
-          {visualIcon}
-        </div>
+        <span className="shrink-0 text-[#c24848]">{visualIcon}</span>
 
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[15px] font-semibold text-[#EEE3D1]">{visual.title || "Visual structure"}</h3>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <Chip>{TYPE_LABEL[visual.type] ?? "Visual"}</Chip>
-            {nodes.length > 0 && <Chip>{nodes.length} steps</Chip>}
-            {edges.length > 0 && <Chip>{edges.length} connections</Chip>}
-            {nodes.length === 0 && steps.length > 0 && <Chip>{steps.length} steps</Chip>}
-          </div>
+          <h3 className="truncate text-[15px] font-semibold text-[#EEE3D1]">
+            {visual.title || "Visual structure"}
+          </h3>
+          <p className="text-[12px] text-[#EEE3D1]/45">
+            {TYPE_LABEL[visual.type] ?? "Visual"}{count > 0 && ` · ${count} steps`}
+          </p>
         </div>
 
-        <Pill open={expanded} openText="Open diagram" closeText="Close" />
+        <span className="flex shrink-0 items-center gap-1 text-[12.5px] text-[#EEE3D1]/60 transition group-hover:text-[#EEE3D1]">
+          {expanded ? "Hide" : "View releated visuals"}
+          {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </span>
       </button>
 
-      {/* ===== diagram body ===== */}
       {expanded && (
-        <div className="border-t border-[#EEE3D1]/10 bg-[#0e0e0d]">
+        <div className="mt-3 overflow-hidden rounded-xl border border-[#EEE3D1]/10 bg-[#0A0A0A]">
           {visual.description && (
-            <div className="p-4 text-sm text-[#EEE3D1]/60"><IRAMarkdown content={visual.description} /></div>
+            <div className="px-4 pt-3 text-sm text-[#EEE3D1]/60">
+              <IRAMarkdown content={visual.description} />
+            </div>
           )}
-          {nodes.length > 0 ? (
+          {visual.type === "comparison" && visual.comparisons?.length ? (
+            <ComparisonView columns={visual.columns ?? []} comparisons={visual.comparisons} />
+          ) : visual.type === "data_chart" && visual.chart ? (
+            <ChartView chart={visual.chart} />
+          ) : visual.type === "timeline" && visual.timeline?.length ? (
+            <TimelineView events={visual.timeline} />
+          ) : visual.type === "cycle" && nodes.length ? (
+            <CycleView nodes={nodes} />
+          ) : visual.type === "hierarchy" && nodes.length ? (
+            <HierarchyView nodes={nodes} />
+          ) : visual.type === "concept_map" && nodes.length ? (
+            <ConceptMap nodes={nodes} edges={edges} />
+          ) : nodes.length > 0 ? (
             <Flowchart nodes={nodes} edges={edges} />
           ) : steps.length > 0 ? (
             <StepsList steps={steps} />
-          ) : (
-            <div className="p-10 text-center text-sm text-[#EEE3D1]/30">No nodes</div>
-          )}
-        </div>
-      )}
-
-      {/* ===== explanation ===== */}
-      {content.trim() && (
-        <div className="border-t border-[#EEE3D1]/10">
-          <button
-            onClick={() => setTextExpanded(v => !v)}
-            className="group flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-[#EEE3D1]/[0.03]"
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-sky-400/30 bg-sky-400/10 text-sky-300">
-              <BookOpen size={22} strokeWidth={1.75} />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-semibold text-[#EEE3D1]">Read explanation</p>
-              <p className="mt-0.5 truncate text-[12.5px] text-[#EEE3D1]/45">
-                {textExpanded ? "Full answer in simple words" : preview || "Tap to read the full answer"}
-              </p>
-            </div>
-
-            <Pill open={textExpanded} openText="Show" closeText="Hide" />
-          </button>
-
-          {textExpanded && (
-            <div className="border-t border-[#EEE3D1]/10 p-5">
-              <IRAMarkdown content={content} />
-            </div>
-          )}
+          ) : null}
         </div>
       )}
     </section>
   );
 }
+
+/* ---------------- MAIN - MULTI POV LOOP ---------------- */
+export default function IRAVisualRenderer({
+  visual,
+  content = "",
+  defaultOpen = false,
+}: Props) {
+  const visuals = Array.isArray(visual) ? visual : [visual];
+
+  if (visuals.length === 0) return null;
+
+  return (
+    <div className="my-4 w-full max-w-2xl space-y-3">
+      {visuals.length > 1 && (
+        <div className="flex items-center gap-2 px-1">
+          <span className="text- font-mono text-[#EEE3D1]/40">{visuals.length} POVs • based on your question</span>
+          <div className="h-px flex-1 bg-[#EEE3D1]/10" />
+        </div>
+      )}
+      {visuals.map((v, idx) => (
+        <SingleCard
+          key={`${v.title}-${idx}`}
+          visual={v}
+          content={idx === 0 ? content : ""} // explanation only first card
+          defaultOpen={defaultOpen || idx === 0}
+        />
+      ))}
+    </div>
+  );
+}
+
+

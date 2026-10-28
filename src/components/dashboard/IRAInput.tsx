@@ -30,6 +30,7 @@ import type {
 import { sendMessageToIRA,
         sendMessageToIRAStream,
         sendGuestMessageToIRA,
+        sendGuestMessageToIRAStream,
          createConversation,
  } from "@/services/api/brainApi";
 
@@ -45,6 +46,9 @@ import {
   clearPendingConversation,
 } from "@/lib/chat/pendingConversationStore";
 import IRAAuth from "@/components/auth/IRAAuth";
+
+import { getInstantAck, type InstantAck } from "@/lib/instantAck";
+
 
 import {
   getGuestSessionId,
@@ -119,6 +123,7 @@ interface IRAInputProps {
   projectId?: string;
   sessionId?: string;
   onStartConversation?: (query: string) => void;
+  onAck?: (ack: InstantAck | null) => void;
 }
 
 interface IRAAttachment {
@@ -147,6 +152,7 @@ export default function IRAInput({
   projectId,
   sessionId,
   onStartConversation,
+  onAck,
 }: IRAInputProps) {
   const { token, user, updateUser } = useAuth();
   
@@ -655,7 +661,7 @@ async function prepareAttachments(): Promise<BrainAttachment[]> {
 
     setIsSending(true);
     onSendingChange(true);
-    onStateChange("thinking");
+    onStateChange("analyzing");
 
     onStartConversation(trimmedQuery);
 
@@ -719,7 +725,7 @@ const userMessage: Message = {
 setPendingConversation(
   newConversationId,
   userMessage,
-  "thinking",
+  "analyzing",
   preparedAttachments
 );
 
@@ -734,7 +740,7 @@ setPendingConversation(
 
       setIsSending(true);
       onSendingChange(true);
-      onStateChange("thinking");
+      onStateChange("analyzing");
 
       router.push(
         `/chat?conversation=${encodeURIComponent(
@@ -794,9 +800,11 @@ const userMessage: Message = {
     setPendingConversation(
       conversationId,
       userMessage,
-      "thinking"
+      "analyzing"
     );
   }
+    
+  onAck?.(getInstantAck(trimmedQuery));
 
   setQuery("");
 
@@ -815,99 +823,81 @@ const userMessage: Message = {
 
   setIsSending(true);
   onSendingChange(true);
-  onStateChange("thinking");
+  onStateChange("analyzing");
 
   if (conversationId) {
     updatePendingConversationState(
       conversationId,
-      "thinking"
+      "analyzing"
     );
   }
 
-  const stateTimer1 =
-    setTimeout(() => {
-      onStateChange("reasoning");
-
-      if (conversationId) {
-        updatePendingConversationState(
-          conversationId,
-          "reasoning"
-        );
-      }
-    }, 1200);
-
-  const stateTimer2 =
-    setTimeout(() => {
-      onStateChange("brainstorming");
-
-      if (conversationId) {
-        updatePendingConversationState(
-          conversationId,
-          "brainstorming"
-        );
-      }
-    }, 2600);
-
-  const stateTimer3 =
-    setTimeout(() => {
-      onStateChange("retrieving");
-
-      if (conversationId) {
-        updatePendingConversationState(
-          conversationId,
-          "retrieving"
-        );
-      }
-    }, 4000);
-
-  const stateTimer4 =
-    setTimeout(() => {
-      onStateChange("connecting");
-
-      if (conversationId) {
-        updatePendingConversationState(
-          conversationId,
-          "connecting"
-        );
-      }
-    }, 5400);
-
-  const stateTimer5 =
-    setTimeout(() => {
-      onStateChange("preparing");
-
-      if (conversationId) {
-        updatePendingConversationState(
-          conversationId,
-          "preparing"
-        );
-      }
-    }, 6800);
+  
 
   // ---------------------------------------------------
   // SEND TO IRA
+ 
   // ---------------------------------------------------
-  let streamingMessageId: string | null = null;
-  let streamStarted = false;
   let response = "";
+  let streamingMessageId: string | null = null;
+  let streamStarted = false;  
+  let currentVisual: Message["visual"] | null = null; // 
   let guestVisual: Message["visual"] | undefined;
   try {
     const preparedAttachments =
   await prepareAttachments();
       
-let response = "";
 
 if (guestMode) {
-  const guestRes = await sendGuestMessageToIRA(
+  streamingMessageId = createId();
+  currentVisual = null;
+
+  const guestRes = await sendGuestMessageToIRAStream(
     trimmedQuery,
     getGuestSessionId(),
-    getGuestDeviceId()
-  );
+    getGuestDeviceId(),
 
+    // Receive text incrementally.
+    (chunk) => {
+      streamStarted = true;
+      response += chunk;
+
+      if (!streamingMessageId) return;
+
+      onMessage({
+        id: streamingMessageId,
+        role: "ira",
+        content: response,
+        ...(currentVisual
+          ? { visual: currentVisual }
+          : {}),
+      });
+    },
+
+    // Preserve visual events.
+    (visual) => {
+      if (!streamingMessageId) return;
+
+      currentVisual = visual;
+
+      onMessage({
+        id: streamingMessageId,
+        role: "ira",
+        content: response,
+        visual,
+      });
+    },
+
+    // Preserve pipeline state updates.
+    (state) => {
+      onStateChange(state);
+    }
+  );
   response = guestRes.response;
-  guestVisual = (guestRes as any).visual ?? undefined;
+  guestVisual = currentVisual ?? undefined;
 } else {
   streamingMessageId = createId();
+  currentVisual = null;
 
   response = await sendMessageToIRAStream(
   trimmedQuery,
@@ -917,8 +907,6 @@ if (guestMode) {
   preparedAttachments,
   workspaceMode,
   sessionId,
-
-
   (chunk) => {
      streamStarted = true;
       response += chunk;
@@ -928,10 +916,12 @@ if (guestMode) {
         id: streamingMessageId,
         role: "ira",
         content: response,
+        ...(currentVisual ? { visual: currentVisual } : {}),
       });
     },
     (visual) => {
       if (!streamingMessageId) return;
+      currentVisual = visual; // save it
 
       onMessage({
         id: streamingMessageId,
@@ -939,7 +929,14 @@ if (guestMode) {
         content: response,
         visual,
       });
+    },
+    (state) => { // <-- THIS IS REAL FROM BACKEND
+    onStateChange(state);
+    if (conversationId) {
+      updatePendingConversationState(conversationId, state);
     }
+  }
+
 );
 }
 
@@ -952,16 +949,6 @@ if (
   return;
 }
 
-if (guestMode) {
-  const iraMessage: Message = {
-    id: createId(),
-    role: "ira",
-    content: response,
-    ...(guestVisual ? { visual: guestVisual } : {}),
-  };
-
-  onMessage(iraMessage);
-}
 
 
 
@@ -1020,11 +1007,7 @@ window.dispatchEvent(
 } 
   
   finally {
-    clearTimeout(stateTimer1);
-    clearTimeout(stateTimer2);
-    clearTimeout(stateTimer3);
-    clearTimeout(stateTimer4);
-    clearTimeout(stateTimer5);
+    
 
     setPastedContent(null);
     
@@ -1043,9 +1026,10 @@ window.dispatchEvent(
         conversationId
       );
     }
-
+    
     setIsSending(false);
     onSendingChange(false);
+    onAck?.(null);
   }
 }
   // =====================================================
@@ -1061,20 +1045,37 @@ window.dispatchEvent(
     ? "fixed inset-x-0 bottom-0 z-40 w-full bg-[var(--background)] px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 md:static md:px-6 md:pb-4 md:pt-3"
     : "fixed inset-x-0 bottom-0 z-40 w-full bg-[var(--background)] px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 md:static md:mx-auto md:px-10 md:pb-6 md:pt-3"
 }
-    >{guestMode && conversationStarted && !isBusy && (
-    <div className="mx-auto mb-2 flex w-full max-w-3xl items-center justify-between gap-3 rounded-xl border border-[#EEE3D1]/10 bg-[#EEE3D1]/[0.04] px-3.5 py-2.5">
-      <p className="text-[12px] leading-5 text-[#EEE3D1]/60">
-        <span className="text-orange-300">✦</span> Want flowcharts, concept maps and visual explanations  and access the persistance memory? Login to unlock.
-      </p>
-
-      <button
-  type="button"
-  onClick={() => setLoginPopupOpen(true)}
-  className="shrink-0 rounded-full border border-orange-400/40 bg-orange-400/10 px-3 py-1 text-[12px] font-medium text-orange-300 transition hover:bg-orange-400/20"
 >
-  Login
-</button>    </div>
-  )}
+  {/* MOBILE — SUBTLE COMPOSER EDGE FADE */}
+<div
+  aria-hidden="true"
+  className="
+    pointer-events-none
+    absolute
+    inset-x-0
+    bottom-full
+    h-20
+    bg-gradient-to-t
+    from-[var(--background)]/90
+    via-[var(--background)]/35
+    to-transparent
+    md:hidden
+  "
+/>
+  {guestMode && conversationStarted && !isBusy && (
+  <div className="mx-auto mb-2 flex w-full max-w-3xl items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5">
+    <p className="text-[11.5px] leading-5 text-[#EEE3D1]/40">
+       Access to visual explanations and persistance memory and more..? Login to unlock.
+    </p>
+    <button
+      type="button"
+      onClick={() => setLoginPopupOpen(true)}
+      className="shrink-0 rounded-full border border-white/[0.08] bg-transparent px-4 py-1 text-[11.5px] text-[#EEE3D1]/45 transition hover:border-[#8A0303]/20 hover:text-[#EEE3D1]/70"
+    >
+      Login
+    </button>
+  </div>
+)}
         <form
         ref={attachmentMenuRef}
   onSubmit={handleSubmit}
@@ -1318,7 +1319,7 @@ window.dispatchEvent(
               : "Ask IRA anything..."
           }
           rows={1}
-          disabled={isBusy}
+          disabled={false}
          className="
   min-h-[38px]
   w-full

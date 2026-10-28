@@ -1,4 +1,6 @@
 import type { VisualPayload } from "@/components/dashboard/types";
+type VisualPayloadCollection = VisualPayload | VisualPayload[];
+import type { IRAState } from "@/components/dashboard/types";
 
 const API_BASE_URL =
   
@@ -10,7 +12,7 @@ interface BrainChatResponse {
 
 interface GuestChatResponse {
   response: string;
-  visual?: VisualPayload | null;
+  visual?: VisualPayloadCollection | null;
   turns_used: number;
   turns_remaining: number;
 }
@@ -52,6 +54,227 @@ export async function sendGuestMessageToIRA(
   return response.json();
 }
 
+
+export async function sendGuestMessageToIRAStream(
+  query: string,
+  sessionId: string,
+  deviceId: string,
+  onChunk?: (chunk: string) => void,
+  onVisual?: (visual: VisualPayloadCollection) => void,
+  onState?: (state: IRAState) => void,
+  onTextComplete?: () => void
+): Promise<GuestChatResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/brain/guest/chat/stream`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        session_id: sessionId,
+        device_id: deviceId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    let detail: unknown;
+
+    try {
+      const data = await response.json();
+      detail = data?.detail;
+    } catch {
+      // Preserve the fallback error.
+    }
+
+    const error = new Error(
+      typeof detail === "string"
+        ? detail
+        : getUserFriendlyError(response.status, detail)
+    ) as Error & { status?: number };
+
+    error.status = response.status;
+    throw error;
+  }
+
+  if (!response.body) {
+    throw new Error("IRA couldn't start the guest response stream.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  let buffer = "";
+  let fullResponse = "";
+  let visual: VisualPayloadCollection | null = null;
+  let streamCompleted = false;
+  let turnsUsed = 0;
+  let turnsRemaining = 0;
+
+  function handleEvent(block: string) {
+    const lines = block.split(/\r?\n/);
+    let eventName = "";
+    const dataLines: string[] = [];
+
+    for (const line of lines) {
+      if (line.startsWith("event:")) {
+        eventName = line.slice(6).trim();
+      } else if (line.startsWith("data:")) {
+        dataLines.push(line.slice(5).trimStart());
+      }
+    }
+
+    if (!eventName || dataLines.length === 0) return;
+
+    let data: any;
+
+    try {
+      data = JSON.parse(dataLines.join("\n"));
+    } catch {
+      throw new Error("IRA returned an invalid streaming event.");
+    }
+
+    switch (eventName) {
+      case "chunk": {
+        if (typeof data.text !== "string") {
+          throw new Error("IRA returned an invalid response chunk.");
+        }
+
+        fullResponse += data.text;
+
+        if (data.text) {
+          onChunk?.(data.text);
+        }
+        break;
+      }
+
+      case "visual": {
+        const candidate = data.visual;
+        const isVisual = (value: unknown): value is VisualPayload =>
+          typeof value === "object" &&
+          value !== null &&
+          !Array.isArray(value) &&
+          "type" in value &&
+          "title" in value;
+
+        if (isVisual(candidate)) {
+          visual = candidate;
+        } else if (
+          Array.isArray(candidate) &&
+          candidate.length > 0 &&
+          candidate.every(isVisual)
+        ) {
+          visual = candidate;
+        } else {
+          throw new Error("IRA returned an invalid visual payload.");
+        }
+
+        onVisual?.(visual);
+        break;
+      }
+
+      case "state": {
+        if (typeof data.state === "string") {
+          onState?.(data.state as IRAState);
+        }
+        break;
+      }
+
+      case "text_complete":
+        onTextComplete?.();
+        break;
+
+      case "error":
+        throw new Error(
+          typeof data.message === "string"
+            ? data.message
+            : "IRA couldn't finish the guest response."
+        );
+
+      case "complete":
+        if (data.success !== true) {
+          throw new Error("IRA couldn't confirm response completion.");
+        }
+
+
+
+        streamCompleted = true;
+        break;
+
+      case "metadata": {
+  if (
+    Number.isInteger(data.turns_used) &&
+    Number.isInteger(data.turns_remaining) &&
+    data.turns_used >= 0 &&
+    data.turns_remaining >= 0
+  ) {
+    turnsUsed = data.turns_used;
+    turnsRemaining = data.turns_remaining;
+  } else {
+    throw new Error("IRA returned invalid guest usage metadata.");
+  }
+  break;
+}
+
+
+
+    }
+
+  }
+
+
+  try {
+    while (!streamCompleted) {
+      const { value, done } = await reader.read();
+
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      const blocks = buffer.split(/\r?\n\r?\n/);
+      buffer = blocks.pop() ?? "";
+
+      for (const block of blocks) {
+        if (block.trim()) handleEvent(block);
+        if (streamCompleted) break;
+      }
+    }
+
+    if (!streamCompleted) {
+      buffer += decoder.decode();
+
+      if (buffer.trim()) {
+        handleEvent(buffer);
+      }
+    }
+
+    if (!streamCompleted) {
+      throw new Error(
+        "The guest response stream ended unexpectedly."
+      );
+    }
+
+    return {
+  response: fullResponse,
+  visual,
+  turns_used: turnsUsed,
+  turns_remaining: turnsRemaining,
+};
+  } finally {
+    if (!streamCompleted) {
+      try {
+        await reader.cancel();
+      } catch {
+        // The connection may already be closed.
+      }
+    }
+
+    reader.releaseLock();
+  }
+}
+
 export interface BrainAttachment {
   type: string;
   name?: string | null;
@@ -76,7 +299,7 @@ export interface ConversationMessage {
     page_count?: number | null;
     status?: string | null;
   }> | null;
-  visual_data?: import('@/components/dashboard/types').VisualPayload | null;
+  visual_data?: VisualPayloadCollection | null;
 }
 
 export interface ConversationSummary {
@@ -306,7 +529,9 @@ export async function sendMessageToIRAStream(
   workspaceMode: "personal" | "private" = "personal",
   sessionId?: string,
   onChunk?: (chunk: string) => void,
-  onVisual?: (visual: VisualPayload) => void
+  onVisual?: (visual: VisualPayloadCollection) => void,
+  onState?: (state: IRAState) => void, 
+  onTextComplete?: () => void
 ): Promise<string> {
   const response = await fetch(
     `${API_BASE_URL}/brain/chat/stream`,
@@ -424,20 +649,36 @@ export async function sendMessageToIRAStream(
     };
 
     if (eventName === "visual") {
-  const visual = payload.visual;
+      const candidate = payload.visual;
+      const isVisual = (value: unknown): value is VisualPayload =>
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value) &&
+        "type" in value &&
+        "title" in value;
 
-  if (
-    typeof visual !== "object" ||
-    visual === null ||
-    !("type" in visual) ||
-    !("title" in visual)
-  ) {
-    throw new Error("IRA returned an invalid visual payload.");
+      if (isVisual(candidate)) {
+        onVisual?.(candidate);
+      } else if (
+        Array.isArray(candidate) &&
+        candidate.length > 0 &&
+        candidate.every(isVisual)
+      ) {
+        onVisual?.(candidate);
+      } else {
+        throw new Error("IRA returned an invalid visual payload.");
+      }
+
+      return;
+    }
+if (eventName === "state") {
+  const state = (payload as any).state;
+  if (typeof state === "string" && onState) {
+    onState(state as IRAState);
   }
-
-  onVisual?.(visual as VisualPayload);
   return;
 }
+
 
     if (eventName === "chunk") {
       if (typeof payload.text !== "string") {
@@ -455,6 +696,10 @@ export async function sendMessageToIRAStream(
       return;
     }
 
+    if (eventName === "text_complete") {
+      onTextComplete?.();
+      return;
+    }
     if (eventName === "complete") {
       if (payload.success !== true) {
         throw new Error(

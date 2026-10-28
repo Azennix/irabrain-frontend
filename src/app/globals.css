@@ -359,3 +359,337 @@ body {
     transform: none;
   }
 }
+
+
+
+/* ==================================================
+   IRABRAIN — SIGNATURE INTELLIGENCE LOADER
+   Existing logo + orbital motion + energy pulse
+================================================== */
+
+.ira-core {
+  isolation: isolate;
+}
+
+/* Ambient energy around the intelligence core */
+.ira-core-aura {
+  background: radial-gradient(
+    circle,
+    rgba(238, 227, 209, 0.13) 0%,
+    rgba(238, 227, 209, 0.045) 42%,
+    transparent 75%
+  );
+
+  filter: blur(3px);
+  animation: ira-core-energy 3.2s ease-in-out infinite;
+}
+
+/* Fine orbital rings */
+.ira-orbit {
+  border: 1px solid rgba(238, 227, 209, 0.11);
+  pointer-events: none;
+}
+
+.ira-orbit-outer {
+  animation: ira-orbit-outer-motion 7s linear infinite;
+}
+
+.ira-orbit-inner {
+  inset: 5px;
+  border-color: rgba(238, 227, 209, 0.19);
+  border-top-color: rgba(238, 227, 209, 0.72);
+  border-bottom-color: rgba(238, 227, 209, 0.035);
+
+  animation: ira-orbit-inner-motion 4.5s ease-in-out infinite;
+}
+
+/* Orbital signal points */
+.ira-orbit-point {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+
+  width: 3px;
+  height: 3px;
+
+  border-radius: 50%;
+  background: #EEE3D1;
+  box-shadow: 0 0 7px rgba(238, 227, 209, 0.32);
+
+  transform: translateX(-50%);
+}
+
+.ira-orbit-inner .ira-orbit-point {
+  top: auto;
+  bottom: 2px;
+
+  width: 2px;
+  height: 2px;
+
+  opacity: 0.55;
+}
+
+/* Logo: controlled acceleration, rotation and deceleration */
+.ira-core-logo {
+  transform-origin: center;
+  animation: ira-logo-activation 4.8s cubic-bezier(
+    0.22,
+    0.61,
+    0.36,
+    1
+  ) infinite;
+
+  will-change: transform;
+}
+
+/* Subtle signal — brand red remains minimal */
+.ira-core-signal {
+  width: 3px;
+  height: 3px;
+
+  border-radius: 50%;
+  background: #8A0303;
+
+  box-shadow: 0 0 5px rgba(138, 3, 3, 0.45);
+
+  animation: ira-signal-pulse 2.4s ease-in-out infinite;
+}
+
+/* State text enters smoothly when the backend state changes */
+.ira-state-label {
+  animation: ira-state-arrive 300ms ease-out both;
+}
+
+/* Three restrained activity indicators */
+.ira-state-dot {
+  width: 3px;
+  height: 3px;
+
+  border-radius: 50%;
+  background: rgba(238, 227, 209, 0.48);
+
+  animation: ira-state-pulse 1.2s ease-in-out infinite;
+}
+
+.ira-state-dot-2 {
+  animation-delay: 160ms;
+}
+
+.ira-state-dot-3 {
+  animation-delay: 320ms;
+}
+
+/* ==================================================
+   MOTION SYSTEM
+================================================== */
+
+@keyframes ira-core-energy {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scale(0.88);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes ira-orbit-outer-motion {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ira-orbit-inner-motion {
+  0%,
+  100% {
+    transform: rotate(-25deg) scale(0.96);
+  }
+
+  50% {
+    transform: rotate(155deg) scale(1.04);
+  }
+}
+
+@keyframes ira-logo-activation {
+  0%,
+  12% {
+    transform: rotate(0deg) scale(0.96);
+  }
+
+  40% {
+    transform: rotate(180deg) scale(1.06);
+  }
+
+  66% {
+    transform: rotate(360deg) scale(1);
+  }
+
+  100% {
+    transform: rotate(360deg) scale(0.96);
+  }
+}
+
+@keyframes ira-signal-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes ira-state-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes ira-state-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .ira-core-aura,
+  .ira-orbit,
+  .ira-core-logo,
+  .ira-core-signal,
+  .ira-state-dot,
+  .ira-state-label {
+    animation: none !important;
+    will-change: auto;
+  }
+}
+
+/* =========================================
+   IRABRAIN — METALLIC STATE LIGHT SWEEP
+========================================= */
+
+.ira-state-loading {
+  display: inline-block;
+
+  color: #EEE3D1;
+  background: linear-gradient(
+    100deg,
+    rgba(238, 227, 209, 0.38) 0%,
+    rgba(238, 227, 209, 0.55) 30%,
+    #FFFFFF 48%,
+    rgba(238, 227, 209, 0.9) 54%,
+    rgba(238, 227, 209, 0.42) 72%,
+    rgba(238, 227, 209, 0.38) 100%
+  );
+
+  background-size: 220% 100%;
+  background-position: 100% 50%;
+
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  animation: ira-state-metallic-sweep 2.8s
+    cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes ira-state-metallic-sweep {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: -120% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ira-state-loading {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: #EEE3D1;
+  }
+}
+
+/* =========================================
+   IRABRAIN — METALLIC LOGO REFLECTION
+   Preserves existing logo animation
+========================================= */
+
+.ira-metallic-logo {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 50%;
+}
+
+/* Original logo remains visible */
+.ira-metallic-logo img {
+  display: block;
+  filter: grayscale(1) brightness(1.12) contrast(1.08);
+}
+
+/* Moving metallic reflection */
+.ira-metallic-logo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background: linear-gradient(
+    110deg,
+    transparent 20%,
+    rgba(238, 227, 209, 0.04) 35%,
+    rgba(255, 255, 255, 0.85) 48%,
+    rgba(238, 227, 209, 0.24) 54%,
+    transparent 70%
+  );
+
+  background-size: 250% 100%;
+  background-position: 150% 0;
+
+  animation: ira-logo-metallic-sweep 3.2s ease-in-out infinite;
+
+  mix-blend-mode: screen;
+}
+
+@keyframes ira-logo-metallic-sweep {
+  0% {
+    background-position: 150% 0;
+  }
+
+  65%,
+  100% {
+    background-position: -150% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ira-metallic-logo::after {
+    animation: none;
+  }
+}

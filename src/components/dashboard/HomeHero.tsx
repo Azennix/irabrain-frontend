@@ -40,7 +40,7 @@ export default function HomeHero() {
         </h1>
 
         <p className="mt-3 text-[16px] font-normal leading-6 text-[var(--muted)] sm:text-[18px]">
-          WHY NOT BUILD'S SOMETHING OF YOUR OWN? LET'S START IT.
+          Why not build something of you own? lets start it.
         </p>
       </div>
     </section>

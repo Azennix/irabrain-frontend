@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { getInstantAck, type InstantAck } from "@/lib/instantAck";
 
 import { useSearchParams } from "next/navigation";
 
@@ -86,13 +87,20 @@ export default function ChatPage() {
     useState(false);
 
   const [iraState, setIRAState] =
-    useState<IRAState>("thinking");
+    useState<IRAState>("analyzing");
 
   const initializedConversation =
     useRef<string | null>(null);
   
   const [isRechargeOpen, setIsRechargeOpen] =
   useState(false);
+    const [ack, setAck] = useState<InstantAck | null>(null);
+   
+  useEffect(() => {
+    if (!ack?.willVisual) return;
+    const t = setTimeout(() => setAck(null), 12000);
+    return () => clearTimeout(t);
+  }, [ack]);
 
   // =====================================================
   // RESET CHAT WHEN CONVERSATION CHANGES
@@ -104,7 +112,7 @@ export default function ChatPage() {
     if (!activeConversationId) {
       setMessages([]);
       setIsSending(false);
-      setIRAState("thinking");
+      setIRAState("analyzing");
     }
   }, [activeConversationId]);
 
@@ -185,69 +193,10 @@ export default function ChatPage() {
 
         setMessages(loadedMessages);
         setIsSending(true);
+        setAck(getInstantAck(pendingConversation.message.content));
 
-        const elapsed =
-          Date.now() -
-          pendingConversation.startedAt;
 
-        if (elapsed < 1200) {
-          setIRAState("thinking");
-        } else if (elapsed < 2600) {
-          setIRAState("reasoning");
-        } else if (elapsed < 4000) {
-          setIRAState("brainstorming");
-        } else if (elapsed < 5400) {
-          setIRAState("retrieving");
-        } else if (elapsed < 6800) {
-          setIRAState("connecting");
-        } else {
-          setIRAState("preparing");
-        }
-
-        const stateTimer1 =
-          setTimeout(() => {
-            setIRAState("reasoning");
-            updatePendingConversationState(
-              conversationId,
-              "reasoning"
-            );
-          }, 1200);
-
-        const stateTimer2 =
-          setTimeout(() => {
-            setIRAState("brainstorming");
-            updatePendingConversationState(
-              conversationId,
-              "brainstorming"
-            );
-          }, 2600);
-
-        const stateTimer3 =
-          setTimeout(() => {
-            setIRAState("retrieving");
-            updatePendingConversationState(
-              conversationId,
-              "retrieving"
-            );
-          }, 4000);
-
-        const stateTimer4 =
-          setTimeout(() => {
-            setIRAState("connecting");
-            updatePendingConversationState(
-              conversationId,
-              "connecting"
-            );
-          }, 5400);
-
-        const stateTimer5 =
-          setTimeout(() => {
-            setIRAState("preparing");
-            updatePendingConversationState(
-              conversationId,
-              "preparing"
-            );
-          }, 6800);
+       
 
         try {
           
@@ -294,6 +243,10 @@ response = await sendMessageToIRAStream(
         visual: responseVisual,
       },
     ]);
+  },
+  (state) => { // REAL
+    setIRAState(state);
+    updatePendingConversationState(conversationId, state);
   }
 );
   
@@ -336,18 +289,14 @@ response = await sendMessageToIRAStream(
 }
         
         finally {
-          clearTimeout(stateTimer1);
-          clearTimeout(stateTimer2);
-          clearTimeout(stateTimer3);
-          clearTimeout(stateTimer4);
-          clearTimeout(stateTimer5);
+          
 
           clearPendingConversation(
             conversationId
           );
 
           setIsSending(false);
-          setIRAState("thinking");
+          setIRAState("analyzing");
         }
       } catch (error) {
         console.error(
@@ -360,7 +309,7 @@ response = await sendMessageToIRAStream(
         ]);
 
         setIsSending(false);
-        setIRAState("thinking");
+        setIRAState("analyzing");
 
         clearPendingConversation(
           conversationId
@@ -405,7 +354,7 @@ response = await sendMessageToIRAStream(
       );
 
       setIsSending(false);
-      setIRAState("thinking");
+      setIRAState("analyzing");
 
     } catch (error) {
       console.error(
@@ -477,6 +426,7 @@ response = await sendMessageToIRAStream(
                   conversationId={undefined}
                   projectId={activeProjectId}
                   onStartConversation={undefined}
+                  onAck={setAck} 
                 />
               </div>
 
@@ -497,6 +447,7 @@ response = await sendMessageToIRAStream(
       conversationId={activeConversationId}
       workspaceMode={workspaceMode}
       onOpenRecharge={() => setIsRechargeOpen(true)}
+      ack={ack}
     />
   </div>
 
@@ -522,6 +473,7 @@ response = await sendMessageToIRAStream(
     conversationStarted={true}
     conversationId={activeConversationId}
     projectId={activeProjectId}
+    onAck={setAck} 
   />
 </div>
             </>

@@ -15,7 +15,7 @@ const pendingConversations =
 export function setPendingConversation(
   conversationId: string,
   message: Message,
-  state: IRAState = "thinking"
+  state: IRAState = "analyzing"
 ) {
   pendingConversations.set(
     conversationId,
