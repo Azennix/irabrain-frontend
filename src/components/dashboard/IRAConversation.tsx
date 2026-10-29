@@ -159,6 +159,21 @@ if (isSending) {
   });
 }
 
+const [textIdle, setTextIdle] = useState(false);
+
+useEffect(() => {
+  setTextIdle(false);
+
+  if (!isSending) return;
+
+  const last = messages[messages.length - 1];
+  if (!last || last.role === "user" || last.visual) return;
+
+  // If no new text arrives for 1.2s, the answer is done and the visual is being prepared.
+  const timer = setTimeout(() => setTextIdle(true), 1200);
+  return () => clearTimeout(timer);
+}, [messages, isSending]);
+
   if (messages.length === 0 && !isSending && !error) {
     return null;
   }
@@ -413,20 +428,20 @@ if (isSending) {
             );
           })}
 
-                    {!isSending && ack?.willVisual && (() => {
-            const last = messages[messages.length - 1];
-            if (!last || last.role === "user" || last.visual) return null;
-            return (
-              <div className="flex items-center gap-2 pl-0.5 text-[12.5px] text-[#EEE3D1]/50">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#8A0303]" />
-                Preparing visual based on your question…
-              </div>
-            );
-          })()}
+        {isSending && textIdle && (() => {
+  const last = messages[messages.length - 1];
+  if (!last || last.role === "user" || last.visual) return null;
+  return (
+    <div className="flex items-center gap-2 pl-0.5 text-[12.5px] text-[#EEE3D1]/50 animate-in fade-in duration-300">
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#8A0303]" />
+      Preparing related visual…
+    </div>
+  );
+})()}
 
           {/* IRA THINKING */}
 
-                            {isSending && (() => {
+              {isSending && (() => {
             const last = messages[messages.length - 1];
             const streaming = !!last && last.role !== "user";
             if (streaming) return null;
