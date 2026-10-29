@@ -211,6 +211,26 @@ case "visual": {
 }
 
 
+      case "complete": {
+        if (data.success !== true) {
+          throw new Error(
+            "IRA couldn't confirm that the guest response completed."
+          );
+        }
+
+        streamCompleted = true;
+        break;
+      }
+
+      case "error": {
+        throw new Error(
+          typeof data.message === "string" && data.message.trim()
+            ? data.message
+            : "IRA couldn't finish the guest response. Please try again."
+        );
+      }
+
+
 
     }
 
