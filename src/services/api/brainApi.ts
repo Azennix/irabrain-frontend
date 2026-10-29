@@ -235,12 +235,21 @@ case "visual": {
     }
 
     if (!streamCompleted) {
-      buffer += decoder.decode();
+  buffer += decoder.decode();
 
-      if (buffer.trim()) {
-        handleEvent(buffer);
-      }
+  // Process any complete SSE events still buffered.
+  const remainingBlocks = buffer.split(/\r?\n\r?\n/);
+
+  for (const block of remainingBlocks) {
+    if (block.trim()) {
+      handleEvent(block);
     }
+
+    if (streamCompleted) {
+      break;
+    }
+  }
+}
 
     if (!streamCompleted) {
       throw new Error(
