@@ -3,7 +3,7 @@ type VisualPayloadCollection = VisualPayload | VisualPayload[];
 import type { IRAState } from "@/components/dashboard/types";
 
 const API_BASE_URL =
-  
+
 process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 interface BrainChatResponse {
@@ -150,58 +150,50 @@ export async function sendGuestMessageToIRAStream(
         break;
       }
 
-      case "visual": {
-        const candidate = data.visual;
-        const isVisual = (value: unknown): value is VisualPayload =>
-          typeof value === "object" &&
-          value !== null &&
-          !Array.isArray(value) &&
-          "type" in value &&
-          "title" in value;
 
-        if (isVisual(candidate)) {
-          visual = candidate;
-        } else if (
-          Array.isArray(candidate) &&
-          candidate.length > 0 &&
-          candidate.every(isVisual)
-        ) {
-          visual = candidate;
-        } else {
-          throw new Error("IRA returned an invalid visual payload.");
-        }
+case "visual": {
+  const candidate = data.visual;
 
-        onVisual?.(visual);
-        break;
-      }
+  const isVisual = (value: unknown): value is VisualPayload =>
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    "type" in value &&
+    "title" in value;
 
-      case "state": {
-        if (typeof data.state === "string") {
-          onState?.(data.state as IRAState);
-        }
-        break;
-      }
+  // Accept one visual object only.
+  // A single visual may still contain many nodes and edges.
+  if (isVisual(candidate)) {
+    visual = candidate;
+    onVisual?.(candidate);
+  } else if (
+    Array.isArray(candidate) &&
+    candidate.length === 1 &&
+    isVisual(candidate[0])
+  ) {
+    // Backward compatibility for legacy one-item arrays.
+    visual = candidate[0];
+    onVisual?.(candidate[0]);
+  } else if (
+    candidate === null ||
+    (Array.isArray(candidate) && candidate.length === 0)
+  ) {
+    // No visual was generated.
+    break;
+  } else {
+    console.warn(
+      "[IRA VISUAL] Ignoring invalid or multiple visual payloads."
+    );
+  }
 
-      case "text_complete":
-        onTextComplete?.();
-        break;
-
-      case "error":
-        throw new Error(
-          typeof data.message === "string"
-            ? data.message
-            : "IRA couldn't finish the guest response."
-        );
-
-      case "complete":
-        if (data.success !== true) {
-          throw new Error("IRA couldn't confirm response completion.");
-        }
+  break;
+}
 
 
 
-        streamCompleted = true;
-        break;
+
+
+
 
       case "metadata": {
   if (
@@ -530,7 +522,7 @@ export async function sendMessageToIRAStream(
   sessionId?: string,
   onChunk?: (chunk: string) => void,
   onVisual?: (visual: VisualPayloadCollection) => void,
-  onState?: (state: IRAState) => void, 
+  onState?: (state: IRAState) => void,
   onTextComplete?: () => void
 ): Promise<string> {
   const response = await fetch(
@@ -648,8 +640,10 @@ export async function sendMessageToIRAStream(
       visual?: unknown;
     };
 
+
     if (eventName === "visual") {
       const candidate = payload.visual;
+
       const isVisual = (value: unknown): value is VisualPayload =>
         typeof value === "object" &&
         value !== null &&
@@ -661,16 +655,26 @@ export async function sendMessageToIRAStream(
         onVisual?.(candidate);
       } else if (
         Array.isArray(candidate) &&
-        candidate.length > 0 &&
-        candidate.every(isVisual)
+        candidate.length === 1 &&
+        isVisual(candidate[0])
       ) {
-        onVisual?.(candidate);
+        // Backward compatibility: accept a legacy one-item array.
+        onVisual?.(candidate[0]);
+      } else if (
+        candidate === null ||
+        (Array.isArray(candidate) && candidate.length === 0)
+      ) {
+        // No visual was generated.
       } else {
-        throw new Error("IRA returned an invalid visual payload.");
+        console.warn(
+          "[IRA VISUAL] Ignoring invalid or multiple visual payloads."
+        );
       }
 
       return;
     }
+
+
 if (eventName === "state") {
   const state = (payload as any).state;
   if (typeof state === "string" && onState) {

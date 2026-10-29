@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState, useRef, useLayoutEffect, useMemo } from "react";
 import {
   ChevronDown, ChevronUp, BookOpen,
@@ -491,34 +491,31 @@ const visualIcon = iconMap[visual.type as string] ?? (
   );
 }
 
-/* ---------------- MAIN - MULTI POV LOOP ---------------- */
+
+/* ---------------- MAIN - SINGLE VISUAL PER ANSWER ---------------- */
+
 export default function IRAVisualRenderer({
   visual,
   content = "",
   defaultOpen = false,
 }: Props) {
-  const visuals = Array.isArray(visual) ? visual : [visual];
+  // Accept legacy arrays, but render at most one visual card.
+  const singleVisual = Array.isArray(visual)
+    ? visual[0]
+    : visual;
 
-  if (visuals.length === 0) return null;
+  if (!singleVisual || singleVisual.type === undefined) {
+    return null;
+  }
 
   return (
-    <div className="my-4 w-full max-w-2xl space-y-3">
-      {visuals.length > 1 && (
-        <div className="flex items-center gap-2 px-1">
-          <span className="text- font-mono text-[#EEE3D1]/40">{visuals.length} POVs • based on your question</span>
-          <div className="h-px flex-1 bg-[#EEE3D1]/10" />
-        </div>
-      )}
-      {visuals.map((v, idx) => (
-        <SingleCard
-          key={`${v.title}-${idx}`}
-          visual={v}
-          content={idx === 0 ? content : ""} // explanation only first card
-          defaultOpen={defaultOpen || idx === 0}
-        />
-      ))}
+    <div className="my-4 w-full max-w-2xl">
+      <SingleCard
+        key={`${singleVisual.title}-${singleVisual.type}`}
+        visual={singleVisual}
+        content={content}
+        defaultOpen={defaultOpen}
+      />
     </div>
   );
 }
-
-
