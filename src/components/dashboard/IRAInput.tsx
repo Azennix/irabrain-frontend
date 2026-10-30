@@ -3,6 +3,9 @@
 import {
   ArrowUp,
   LoaderCircle,
+  Square,
+  Contrast,
+  AlertTriangle,
   Plus,
   X,
   FileText,
@@ -115,6 +118,8 @@ interface IRAInputProps {
   isProcessing?: boolean;
   onStateChange: (state: IRAState) => void;
   conversationStarted: boolean;
+  editingMessage?: Message | null;
+  onEditComplete?: () => void;
   conversationId?: string;
   guestMode?: boolean;
   onGuestLimitReached?: () => void;
@@ -142,6 +147,8 @@ interface PastedContent {
 
 export default function IRAInput({
   onMessage,
+  editingMessage,
+  onEditComplete,
   isProcessing = false,
   guestMode = false,
   onGuestLimitReached,
@@ -166,6 +173,15 @@ export default function IRAInput({
 const brainBalanceStatus = getBrainBalanceStatus(
   balance?.total_balance ?? "0"
 );
+const brainUnits = Number(balance?.total_balance ?? 0);
+
+const showLowBrainBanner =
+  Boolean(token) &&
+  !brainBalanceLoading &&
+  balance?.total_balance != null &&
+  brainUnits <= 5;
+
+const criticalBrainBalance = brainUnits <= 1;
 
 const brainIconClass =
   Number(balance?.total_balance ?? "0") < 10
@@ -202,12 +218,29 @@ const fileInputRef =
   useRef<HTMLInputElement>(null);
   const [isSending, setIsSending] = useState(false);
   const isBusy = isSending || isProcessing;
+  const streamControllerRef = useRef<AbortController | null>(null);
+
+ function stopGeneration() {
+  streamControllerRef.current?.abort();
+}
   const [brainBalanceOpen, setBrainBalanceOpen] =
   useState(false);
   const [brainRechargeOpen, setBrainRechargeOpen] =
   useState(false);
   const [loginPopupOpen, setLoginPopupOpen] = useState(false);
   const attachmentMenuRef = useRef<HTMLFormElement>(null);
+ const [highContrast, setHighContrast] = useState(false);
+
+useEffect(() => {
+  document.documentElement.classList.toggle(
+    "ira-high-contrast",
+    highContrast
+  );
+
+  return () => {
+    document.documentElement.classList.remove("ira-high-contrast");
+  };
+}, [highContrast]);
 
 
   useEffect(() => {
@@ -394,6 +427,17 @@ useEffect(() => {
     resizeTextarea();
   });
 }, [query]);
+
+useEffect(() => {
+  if (!editingMessage) return;
+
+  setQuery(editingMessage.content);
+
+  requestAnimationFrame(() => {
+    textareaRef.current?.focus();
+    resizeTextarea();
+  });
+}, [editingMessage]);
 
   // =====================================================
   // PASTE HANDLING
@@ -795,6 +839,7 @@ const userMessage: Message = {
 };
 
   onMessage(userMessage);
+  onEditComplete?.();
 
   if (conversationId) {
     setPendingConversation(
@@ -840,9 +885,48 @@ const userMessage: Message = {
   // ---------------------------------------------------
   let response = "";
   let streamingMessageId: string | null = null;
+  const controller = new AbortController();
+  streamControllerRef.current = controller;
   let streamStarted = false;  
   let currentVisual: Message["visual"] | null = null; // 
   let guestVisual: Message["visual"] | undefined;
+
+  // Smooth streaming render scheduler
+let renderFrame: number | null = null;
+
+const scheduleStreamingRender = () => {
+  if (!streamingMessageId || renderFrame !== null) return;
+
+  renderFrame = requestAnimationFrame(() => {
+    renderFrame = null;
+
+    if (!streamingMessageId) return;
+
+    onMessage({
+      id: streamingMessageId,
+      role: "ira",
+      content: response,
+      ...(currentVisual ? { visual: currentVisual } : {}),
+    });
+  });
+};
+
+// Ensure the final text is rendered before streaming finishes.
+const flushStreamingRender = () => {
+  if (renderFrame !== null) {
+    cancelAnimationFrame(renderFrame);
+    renderFrame = null;
+  }
+
+  if (!streamingMessageId) return;
+
+  onMessage({
+    id: streamingMessageId,
+    role: "ira",
+    content: response,
+    ...(currentVisual ? { visual: currentVisual } : {}),
+  });
+};
   try {
     const preparedAttachments =
   await prepareAttachments();
@@ -859,20 +943,10 @@ if (guestMode) {
 
     // Receive text incrementally.
     (chunk) => {
-      streamStarted = true;
-      response += chunk;
-
-      if (!streamingMessageId) return;
-
-      onMessage({
-        id: streamingMessageId,
-        role: "ira",
-        content: response,
-        ...(currentVisual
-          ? { visual: currentVisual }
-          : {}),
-      });
-    },
+  streamStarted = true;
+  response += chunk;
+  scheduleStreamingRender();
+},
 
     // Preserve visual events.
     (visual) => {
@@ -891,7 +965,9 @@ if (guestMode) {
     // Preserve pipeline state updates.
     (state) => {
       onStateChange(state);
-    }
+    },
+    undefined,
+controller.signal
   );
   response = guestRes.response;
   guestVisual = currentVisual ?? undefined;
@@ -908,17 +984,10 @@ if (guestMode) {
   workspaceMode,
   sessionId,
   (chunk) => {
-     streamStarted = true;
-      response += chunk;
-      if (!streamingMessageId) return;
-
-      onMessage({
-        id: streamingMessageId,
-        role: "ira",
-        content: response,
-        ...(currentVisual ? { visual: currentVisual } : {}),
-      });
-    },
+  streamStarted = true;
+  response += chunk;
+  scheduleStreamingRender();
+},
     (visual) => {
       if (!streamingMessageId) return;
       currentVisual = visual; // save it
@@ -935,11 +1004,15 @@ if (guestMode) {
     if (conversationId) {
       updatePendingConversationState(conversationId, state);
     }
-  }
+    
+  },
+  undefined,
+controller.signal
+  
 
 );
 }
-
+flushStreamingRender();
 await refreshBalance();
 
 if (
@@ -969,6 +1042,15 @@ window.dispatchEvent(
           }
         ).status
       : undefined;
+
+
+    if (
+  error instanceof Error &&
+  error.name === "AbortError"
+) {
+  flushStreamingRender();
+  return;
+}
 
   if (guestMode && status === 403) {
     onGuestLimitReached?.();
@@ -1008,7 +1090,9 @@ window.dispatchEvent(
   
   finally {
     
-
+  if (streamControllerRef.current === controller) {
+  streamControllerRef.current = null;
+}
     setPastedContent(null);
     
     // ATTACHMENT_CHIP_CLEANUP_V3: clear submitted files from composer.
@@ -1074,6 +1158,42 @@ window.dispatchEvent(
     >
       Login
     </button>
+  </div>
+)}
+{showLowBrainBanner && (
+  <div className="mx-auto mb-2 flex w-full max-w-3xl items-center justify-between gap-3 rounded-xl border border-[#EEE3D1]/10 bg-[#171716] px-3.5 py-2.5">
+
+    <div className="flex min-w-0 items-center gap-2.5">
+      {criticalBrainBalance && (
+        <AlertTriangle
+          size={18}
+          className="shrink-0 text-[#EAB308]"
+        />
+      )}
+
+      <div className="min-w-0">
+        <p className="text-[12px] font-medium text-[#EEE3D1]/85">
+          {criticalBrainBalance
+            ? "Your Brain needs a recharge"
+            : "Your Brain Units are running low"}
+        </p>
+
+        <p className="mt-0.5 text-[11px] leading-5 text-[#EEE3D1]/45">
+          {criticalBrainBalance
+            ? "Recharge your Brain to restore its available capacity."
+            : `${brainUnits} Brain Units remaining. Recharge to maintain your IRA capabilities.`}
+        </p>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => setBrainRechargeOpen(true)}
+      className="shrink-0 rounded-full border border-[#EEE3D1]/15 px-4 py-1.5 text-[11px] text-[#EEE3D1]/75 transition hover:bg-[#EEE3D1]/[0.06]"
+    >
+      Recharge
+    </button>
+
   </div>
 )}
         <form
@@ -1365,11 +1485,8 @@ window.dispatchEvent(
   setAttachmentError(null);
 }}
             >
-              <Plus size={18} strokeWidth={1.6} />
+              <Paperclip size={18} strokeWidth={1.6} />
             </button>
-
-
-
           {token && (
   <div
   ref={brainBalanceRef}
@@ -1609,50 +1726,72 @@ transition: "stroke-dashoffset 500ms ease",
   onChange={addAttachments}
 />
           </div>
+          <div className="flex shrink-0 items-center gap-2">
 
           <button
-            type="submit"
-            aria-label="Send message"
+    type="button"
+    aria-label="Toggle text contrast"
+    aria-pressed={highContrast}
+    title={
+      highContrast
+        ? "Normal text contrast"
+        : "Increase text contrast"
+    }
+    onClick={() => setHighContrast((current) => !current)}
+    className={`
+      flex h-8 w-8 items-center justify-center
+      rounded-full transition
+      hover:bg-[var(--surface-hover)]
+      active:scale-95
+      ${
+        highContrast
+          ? "text-[#EEE3D1]"
+          : "text-[#EEE3D1]/45"
+      }
+    `}
+  >
+    <Contrast size={17} strokeWidth={1.6} />
+  </button>
 
-            disabled={
-  (
-    !query.trim() &&
-    attachments.length === 0 &&
-    !pastedContent
-  ) ||
-  (!token && !guestMode) ||
-  isBusy
-}
-            className="
-              flex
-              h-8
-              w-8
-              shrink-0
-              items-center
-              justify-center
-              rounded-full
-              bg-[var(--foreground)]
-              text-[var(--background)]
-              transition
-              hover:opacity-85
-              active:scale-95
-              disabled:cursor-not-allowed
-              disabled:opacity-25
-            "
-          >
-            {isBusy ? (
-  <LoaderCircle
-    size={17}
-    strokeWidth={1.8}
-    className="animate-spin"
-  />
-) : (
-  <ArrowUp
-    size={16}
-    strokeWidth={2}
-  />
-)}
-          </button>
+          <button
+  type={isBusy ? "button" : "submit"}
+  aria-label={isBusy ? "Stop generating" : "Send message"}
+  onClick={isBusy ? stopGeneration : undefined}
+  disabled={
+    !isBusy &&
+    (
+      (!query.trim() &&
+        attachments.length === 0 &&
+        !pastedContent) ||
+      (!token && !guestMode)
+    )
+  }
+  className="
+    flex h-8 w-8 shrink-0 items-center justify-center
+    rounded-full
+    bg-[var(--foreground)]
+    text-[var(--background)]
+    transition
+    hover:opacity-85
+    active:scale-95
+    disabled:cursor-not-allowed
+    disabled:opacity-25
+  "
+>
+  {isBusy ? (
+    <Square
+      size={13}
+      fill="currentColor"
+      strokeWidth={1.8}
+    />
+  ) : (
+    <ArrowUp
+      size={16}
+      strokeWidth={2}
+    />
+  )}
+</button>
+          </div>
         </div>
       </form>
       <BrainRechargeModal

@@ -62,7 +62,8 @@ export async function sendGuestMessageToIRAStream(
   onChunk?: (chunk: string) => void,
   onVisual?: (visual: VisualPayloadCollection) => void,
   onState?: (state: IRAState) => void,
-  onTextComplete?: () => void
+  onTextComplete?: () => void,
+  signal?: AbortSignal
 ): Promise<GuestChatResponse> {
   const response = await fetch(
     `${API_BASE_URL}/brain/guest/chat/stream`,
@@ -71,6 +72,7 @@ export async function sendGuestMessageToIRAStream(
       headers: {
         "Content-Type": "application/json",
       },
+      signal,
       body: JSON.stringify({
         query,
         session_id: sessionId,
@@ -552,7 +554,8 @@ export async function sendMessageToIRAStream(
   onChunk?: (chunk: string) => void,
   onVisual?: (visual: VisualPayloadCollection) => void,
   onState?: (state: IRAState) => void,
-  onTextComplete?: () => void
+  onTextComplete?: () => void,
+   signal?: AbortSignal
 ): Promise<string> {
   const response = await fetch(
     `${API_BASE_URL}/brain/chat/stream`,
@@ -562,6 +565,7 @@ export async function sendMessageToIRAStream(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
+      signal,
       body: JSON.stringify({
         query,
         conversation_id: conversationId ?? null,

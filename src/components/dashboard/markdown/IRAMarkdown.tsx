@@ -5,8 +5,11 @@ import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Lightbulb, AlertTriangle, Check, Copy, Clock, Sparkles } from "lucide-react";
-
-interface IRAMarkdownProps { content: string; }
+import { X, Plus } from "lucide-react";
+interface IRAMarkdownProps {
+  content: string;
+  isStreaming?: boolean;
+}
 
 /* ---------- fonts (add the Google fonts in layout.tsx, see note below) ---------- */
 const SERIF = { fontFamily: "'Instrument Serif', 'Playfair Display', Georgia, serif" };
@@ -147,7 +150,83 @@ const components: Components = {
     return <CodeBlock lang={match[1]} code={String(children).replace(/\n$/, "")} />;
   },
 };
+// Lightweight renderer used only while IRA is streaming.
+const streamingComponents: Components = {
+  p: ({ children }) => (
+    <p className="mb-3 whitespace-pre-wrap break-words text-[16px] leading-[1.75] text-[#EEE3D1]/75">
+      {children}
+    </p>
+  ),
 
+  h1: ({ children }) => (
+    <h1 className="mb-3 mt-5 text-xl text-[#EEE3D1]">
+      {children}
+    </h1>
+  ),
+
+  h2: ({ children }) => (
+    <h2 className="mb-3 mt-5 text-lg font-semibold text-[#EEE3D1]">
+      {children}
+    </h2>
+  ),
+
+  h3: ({ children }) => (
+    <h3 className="mb-2 mt-4 text-base font-semibold text-[#EEE3D1]">
+      {children}
+    </h3>
+  ),
+
+  ul: ({ children }) => (
+    <ul className="mb-3 ml-5 list-disc space-y-2 text-[#EEE3D1]/75">
+      {children}
+    </ul>
+  ),
+
+  ol: ({ children }) => (
+    <ol className="mb-3 ml-5 list-decimal space-y-2 text-[#EEE3D1]/75">
+      {children}
+    </ol>
+  ),
+
+  li: ({ children }) => <li>{children}</li>,
+
+  strong: ({ children }) => (
+    <strong className="font-semibold text-[#EEE3D1]">
+      {children}
+    </strong>
+  ),
+
+  em: ({ children }) => <em>{children}</em>,
+
+  blockquote: ({ children }) => (
+    <blockquote className="my-3 pl-4 italic text-[#EEE3D1]/60">
+      {children}
+    </blockquote>
+  ),
+
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[#EEE3D1] underline decoration-[#EEE3D1]/30"
+    >
+      {children}
+    </a>
+  ),
+
+  pre: ({ children }) => (
+    <pre className="my-3 overflow-x-auto rounded-lg border border-[#EEE3D1]/10 bg-[#0f0f0e] p-4 text-sm">
+      {children}
+    </pre>
+  ),
+
+  code: ({ children }) => (
+    <code className="font-mono text-[13px] text-[#EEE3D1]">
+      {children}
+    </code>
+  ),
+};
 const MD = ({ children }: { children: string }) => (
   <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{children}</ReactMarkdown>
 );
@@ -180,12 +259,30 @@ const Card = ({ index, accent, label, title, body }: { index: number; accent: st
 };
 
 /* ---------- main ---------- */
-function IRAMarkdown({ content }: IRAMarkdownProps) {
+function IRAMarkdown({
+  content,
+  isStreaming = false, 
+}: IRAMarkdownProps) {
   const [copiedAll, setCopiedAll] = useState(false);
+const [collapsed, setCollapsed] = useState(false);
+  // Lightweight rendering while IRA is generating.
+  if (isStreaming) {
+    return (
+      <div className="ira-markdown min-w-0 break-words border-l-2 border-[#8A0303] pl-5 sm:pl-6">
+
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={streamingComponents}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
   const words = content.trim().split(/\s+/).length;
   const read = Math.max(1, Math.ceil(words / 200));
   const { eyebrow, intro, sections } = parse(content);
-
   // short & simple reply -> plain text, no card, no meta bar
   const isShort =
     words < 40 &&
@@ -194,9 +291,9 @@ function IRAMarkdown({ content }: IRAMarkdownProps) {
 
   if (isShort) {
     return (
-      <div className="ira-markdown min-w-0 break-words">
-        <MD>{content}</MD>
-      </div>
+      <div className="ira-markdown min-w-0 break-words border-l-2 border-[#8A0303] pl-5 sm:pl-6">
+  <MD>{content}</MD>
+</div>
     );
   }
   return (
@@ -210,41 +307,103 @@ function IRAMarkdown({ content }: IRAMarkdownProps) {
           <span className="h-3 w-px bg-[#EEE3D1]/10" />
           <span className="flex items-center gap-1 text-[#EEE3D1]/50"><Sparkles size={11} /> Action ready</span>
         </div>
-        <button
-  onClick={() => { navigator.clipboard.writeText(content); setCopiedAll(true); setTimeout(() => setCopiedAll(false), 1200); }}
-  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#EEE3D1]/10 bg-[#EEE3D1]/[0.04] text-[#EEE3D1]/40 hover:bg-[#EEE3D1]/10 hover:text-[#EEE3D1] transition"
-  title={copiedAll ? "Copied!" : "Copy"}
->
-  {copiedAll ? <Check size={13} /> : <Copy size={13} />}
-</button>
+        <div className="flex h-8 items-center gap-3 rounded-full border border-[#EEE3D1]/10 bg-[#EEE3D1]/[0.04] px-3 text-[#EEE3D1]/50">
+  <button
+    onClick={() => setCollapsed(!collapsed)}
+    title={collapsed ? "Expand" : "Collapse"}
+    className="hover:text-[#EEE3D1]"
+  >
+    {collapsed ? <Plus size={13} /> : <X size={13} />}
+  </button>
+
+  <button
+    onClick={() => {
+      navigator.clipboard.writeText(content);
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 1200);
+    }}
+    title="Copy"
+    className="hover:text-[#EEE3D1]"
+  >
+    {copiedAll ? <Check size={13} /> : <Copy size={13} />}
+  </button>
+</div>
       </div>
 
       {/* eyebrow from "# Title" */}
-      {eyebrow && (
-        <div className="mb-4 flex items-center gap-2.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: ACCENTS[0] }} />
-          <span className="text-[13px] uppercase tracking-[0.25em] text-[#EEE3D1]/55" style={MONO}>{eyebrow}</span>
-        </div>
-      )}
+      {/* Collapse entire response content */}
+{!collapsed && (
+  <>
+    {/* eyebrow from "# Title" */}
+    {eyebrow && (
+      <div className="mb-4 flex items-center gap-2.5">
+        <span
+          className="h-2.5 w-2.5 rounded-full"
+          style={{ background: ACCENTS[0] }}
+        />
+        <span
+          className="text-[13px] uppercase tracking-[0.25em] text-[#EEE3D1]/55"
+          style={MONO}
+        >
+          {eyebrow}
+        </span>
+      </div>
+    )}
 
-      {/* intro text before the first ## */}
-      {intro && sections.length > 0 && (
-        <div className="mb-5"><MD>{intro}</MD></div>
-      )}
+    
+    
 
-      {/* cards */}
-      {/* cards - NOW OUTSIDE, NO CARD BG */}
-{sections.length > 0 ? (
-  <div className="space-y-6">
-    {sections.map((s, i) => (
-      <Card key={i} index={i} accent="#8A0303" label={s.label} title={s.title} body={s.body} />
-    ))}
-  </div>
-) : (
-  // no "##" headings -> plain outside, no card
-  <div className="border-l-2 border-[#8A0303] pl-5">
-    <MD>{intro || content}</MD>
-  </div>
+    {/* Keep your existing intro and cards code here */}
+    {intro && sections.length > 0 && (
+      <div className="mb-5">
+        <MD>{intro}</MD>
+      </div>
+    )}
+
+    {sections.length > 0 ? (
+      <div className="space-y-6">
+        {sections.map((s, i) => (
+          <Card
+            key={i}
+            index={i}
+            accent="#8A0303"
+            label={s.label}
+            title={s.title}
+            body={s.body}
+          />
+        ))}
+      </div>
+    ) : (
+      <div className="border-l-2 border-[#8A0303] pl-5">
+        <MD>{intro || content}</MD>
+      </div>
+    )}
+  </>
+)}
+
+{collapsed && (
+  <button
+    type="button"
+    onClick={() => setCollapsed(false)}
+    className="group flex w-full items-center justify-between border-l-2 border-[#8A0303] py-3 pl-4 pr-3 text-left transition hover:bg-[#EEE3D1]/[0.03]"
+  >
+    <div className="flex items-center gap-3">
+      <Sparkles size={18} className="text-[#8A0303]" />
+
+      <div>
+        <p className="text-sm font-semibold text-[#EEE3D1]">
+          IRA Text Response
+        </p>
+        <p className="text-xs text-[#EEE3D1]/40">
+          Text response · {words} words
+        </p>
+      </div>
+    </div>
+
+    <span className="text-xs text-[#EEE3D1]/60 group-hover:text-[#EEE3D1]">
+      View response ⌄
+    </span>
+  </button>
 )}
 {/* SMALL TOAST - BOTTOM, COPY CHESAKA */}
     {copiedAll && (

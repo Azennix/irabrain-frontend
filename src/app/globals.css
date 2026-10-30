@@ -693,3 +693,69 @@ body {
     animation: none;
   }
 }
+
+/* =========================================
+   IRABRAIN — HIGH TEXT CONTRAST
+========================================= */
+
+html.ira-high-contrast .ira-markdown p,
+html.ira-high-contrast .ira-markdown li,
+html.ira-high-contrast .ira-markdown td,
+html.ira-high-contrast .ira-markdown blockquote {
+  color: #EEE3D1 !important;
+}
+
+html.ira-high-contrast .ira-markdown strong,
+html.ira-high-contrast .ira-markdown h1,
+html.ira-high-contrast .ira-markdown h2,
+html.ira-high-contrast .ira-markdown h3 {
+  color: #FFFFFF !important;
+}
+
+
+
+/* =========================================
+   IRABRAIN — STREAMING TEXT REVEAL
+========================================= */
+
+.ira-streaming-reveal {
+  position: relative;
+  isolation: isolate;
+}
+
+.ira-streaming-reveal::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42px;
+
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(18, 17, 16, 0.55) 55%,
+    #121110 100%
+  );
+
+  animation: ira-stream-gradient-fade 850ms ease-out forwards;
+}
+
+@keyframes ira-stream-gradient-fade {
+  from {
+    opacity: 0.85;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ira-streaming-reveal::after {
+    animation: none;
+    opacity: 0;
+  }
+}

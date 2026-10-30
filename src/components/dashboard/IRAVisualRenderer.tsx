@@ -266,6 +266,7 @@ function HierarchyView({ nodes }: { nodes: VisualNode[] }) {
           </div>
         </>
       )}
+      
     </div>
   );
 

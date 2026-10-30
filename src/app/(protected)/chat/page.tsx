@@ -82,6 +82,9 @@ export default function ChatPage() {
 
   const [messages, setMessages] =
     useState<Message[]>([]);
+  const [editingMessage, setEditingMessage] =
+  useState<Message | null>(null);
+  const editingMessageIdRef = useRef<string | null>(null);
 
   const [isSending, setIsSending] =
     useState(false);
@@ -215,35 +218,45 @@ response = await sendMessageToIRAStream(
   workspaceMode,
   undefined,
   (chunk) => {
-    response += chunk;
+  response += chunk;
 
-    setMessages((current) => [
-      ...current.filter(
-        (message) => message.id !== streamingMessageId
-      ),
-      {
-        id: streamingMessageId,
-        role: "ira",
-        content: response,
-        visual: responseVisual,
-      },
-    ]);
-  },
+  setMessages((current) => {
+    const updatedMessage: Message = {
+      id: streamingMessageId,
+      role: "ira",
+      content: response,
+      visual: responseVisual,
+    };
+
+    const exists = current.some(
+      (message) => message.id === streamingMessageId
+    );
+
+    if (exists) {
+      return current.map((message) =>
+        message.id === streamingMessageId
+          ? updatedMessage
+          : message
+      );
+    }
+
+    return [...current, updatedMessage];
+  });
+},
   (visual) => {
-    responseVisual = visual;
+  responseVisual = visual;
 
-    setMessages((current) => [
-      ...current.filter(
-        (message) => message.id !== streamingMessageId
-      ),
-      {
-        id: streamingMessageId,
-        role: "ira",
-        content: response,
-        visual: responseVisual,
-      },
-    ]);
-  },
+  setMessages((current) =>
+    current.map((message) =>
+      message.id === streamingMessageId
+        ? {
+            ...message,
+            visual: responseVisual,
+          }
+        : message
+    )
+  );
+},
   (state) => { // REAL
     setIRAState(state);
     updatePendingConversationState(conversationId, state);
@@ -380,12 +393,51 @@ response = await sendMessageToIRAStream(
   // =====================================================
 
  function handleMessage(message: Message) {
+  const editingId =
+    message.role === "user"
+      ? editingMessageIdRef.current
+      : null;
+
+  if (editingId) {
+    editingMessageIdRef.current = null;
+  }
+
   setMessages((current) => {
+    // EDIT & RESEND: replace the selected message
+    // and remove all messages that came after it.
+    if (editingId) {
+      const editIndex = current.findIndex(
+        (item) => item.id === editingId
+      );
+
+      if (editIndex !== -1) {
+        return [
+          ...current.slice(0, editIndex),
+          message,
+        ];
+      }
+    }
+
+    // Normal message / streaming update
     const filtered = current.filter(
       (item) => item.id !== message.id
     );
 
     return [...filtered, message];
+  });
+}
+function handleEditMessage(message: Message) {
+  if (isSending) return;
+
+  editingMessageIdRef.current = message.id;
+
+  setEditingMessage(message);
+
+  requestAnimationFrame(() => {
+    document.getElementById("ira-input")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
   });
 }
   // =====================================================
@@ -423,6 +475,7 @@ response = await sendMessageToIRAStream(
                   onSendingChange={setIsSending}
                   onStateChange={setIRAState}
                   conversationStarted={false}
+                  
                   conversationId={undefined}
                   projectId={activeProjectId}
                   onStartConversation={undefined}
@@ -443,11 +496,13 @@ response = await sendMessageToIRAStream(
     <IRAConversation
       messages={messages}
       isSending={isSending}
+      onEditMessage={handleEditMessage}
       iraState={iraState}
       conversationId={activeConversationId}
       workspaceMode={workspaceMode}
       onOpenRecharge={() => setIsRechargeOpen(true)}
       ack={ack}
+      scrollContainerRef={scrollContainerRef}
     />
   </div>
 
@@ -471,6 +526,8 @@ response = await sendMessageToIRAStream(
     onSendingChange={setIsSending}
     onStateChange={setIRAState}
     conversationStarted={true}
+    editingMessage={editingMessage}
+    onEditComplete={() => setEditingMessage(null)}
     conversationId={activeConversationId}
     projectId={activeProjectId}
     onAck={setAck} 
