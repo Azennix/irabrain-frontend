@@ -92,6 +92,7 @@ export interface VisualChartSeries {
 }
 
 export interface VisualChartData {
+  kind?: "bar" | "line" | "pie";   // NEW
   labels: string[];
   series: VisualChartSeries[];
   unit?: string;
@@ -108,6 +109,7 @@ export interface VisualPayload {
   chart?: VisualChartData;
   branches?: VisualDecisionBranch[];
   centerNodeId?: string;
+  
 
   metadata?: {
     complexity?: "simple" | "moderate" | "complex";

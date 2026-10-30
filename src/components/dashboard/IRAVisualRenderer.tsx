@@ -1,23 +1,28 @@
-"use client";
+﻿"use client";
 import React, { useState, useRef, useLayoutEffect, useMemo } from "react";
 import {
-  ChevronDown, ChevronUp, BookOpen,
+  ChevronDown, ChevronUp,
   Workflow, Network, ListOrdered, Scale,
 } from "lucide-react";
+import {
+  ResponsiveContainer, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, Tooltip, Legend, CartesianGrid,
+} from "recharts";
 import type { VisualPayload, VisualNode, VisualEdge } from "./types";
 import IRAMarkdown from "./markdown/IRAMarkdown";
 
-interface SingleProps { 
-  visual: VisualPayload; 
-  content?: string; 
-  defaultOpen?: boolean; 
+interface SingleProps {
+  visual: VisualPayload;
+  content?: string;
+  defaultOpen?: boolean;
 }
 
-interface Props { 
-  visual: VisualPayload | VisualPayload[]; 
-  content?: string; 
-  defaultOpen?: boolean; 
+interface Props {
+  visual: VisualPayload | VisualPayload[];
+  content?: string;
+  defaultOpen?: boolean;
 }
+
 const COLOR_MAP: Record<string, string> = {
   "0": "bg-[#000000] border-[#8A0303]/70 text-[#EEE3D1]",
   "1": "bg-[#171614] border-[#EEE3D1]/25 text-[#EEE3D1]",
@@ -46,7 +51,6 @@ function buildLevels(nodes: VisualNode[], edges: VisualEdge[]) {
   const ids = new Set(nodes.map(n => n.id));
   const valid = edges.filter(e => ids.has(e.from) && ids.has(e.to) && e.from !== e.to);
 
-  // find back-edges (cycles) with DFS so they don't break layering
   const adj = new Map<string, string[]>();
   nodes.forEach(n => adj.set(n.id, []));
   valid.forEach(e => adj.get(e.from)!.push(e.to));
@@ -67,7 +71,6 @@ function buildLevels(nodes: VisualNode[], edges: VisualEdge[]) {
 
   const forward = valid.filter(e => !back.has(`${e.from}->${e.to}`));
 
-  // longest-path layering
   const level = new Map<string, number>(nodes.map(n => [n.id, 0]));
   for (let i = 0; i < nodes.length; i++) {
     let changed = false;
@@ -153,7 +156,6 @@ function Flowchart({ nodes, edges }: { nodes: VisualNode[]; edges: VisualEdge[] 
   return (
     <div className="w-full overflow-x-auto bg-[#171614]">
       <div ref={wrapRef} className="relative mx-auto flex w-fit min-w-full flex-col items-center gap-14 px-10 py-8 sm:gap-16">
-        {/* connectors */}
         <svg className="pointer-events-none absolute left-0 top-0" width={size.w} height={size.h} style={{ overflow: "visible" }}>
           <defs>
             <marker id="ira-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -165,7 +167,6 @@ function Flowchart({ nodes, edges }: { nodes: VisualNode[]; edges: VisualEdge[] 
           ))}
         </svg>
 
-        {/* edge labels */}
         {drawn.map(p =>
           p.label ? (
             <span
@@ -178,7 +179,6 @@ function Flowchart({ nodes, edges }: { nodes: VisualNode[]; edges: VisualEdge[] 
           ) : null
         )}
 
-        {/* rows */}
         {rows.map((row, ri) => (
           <div key={ri} className="relative z-[1] flex flex-wrap items-stretch justify-center gap-x-8 gap-y-14">
             {row.map(n => (
@@ -212,12 +212,14 @@ function StepsList({ steps }: { steps: { title: string; description?: string }[]
   );
 }
 
-/* ---------------- visual-specific layouts ---------------- */
-
-function ConceptMap({ nodes, edges }: { nodes: VisualNode[]; edges: VisualEdge[] }) {
-  const center = nodes.find(n => n.id === (arguments[0] as any).centerNodeId)
-    ?? nodes.find(n => !edges.some(e => e.to === n.id))
-    ?? nodes[0];
+/* ---------------- concept map ---------------- */
+function ConceptMap({
+  nodes, edges, centerNodeId,
+}: { nodes: VisualNode[]; edges: VisualEdge[]; centerNodeId?: string }) {
+  const center =
+    nodes.find(n => n.id === centerNodeId) ??
+    nodes.find(n => !edges.some(e => e.to === n.id)) ??
+    nodes[0];
   const others = nodes.filter(n => n.id !== center?.id);
 
   return (
@@ -248,6 +250,7 @@ function ConceptMap({ nodes, edges }: { nodes: VisualNode[]; edges: VisualEdge[]
   );
 }
 
+/* ---------------- hierarchy ---------------- */
 function HierarchyView({ nodes }: { nodes: VisualNode[] }) {
   const roots = nodes.filter(n => !n.parentId || !nodes.some(p => p.id === n.parentId));
   const children = (id: string) => nodes.filter(n => n.parentId === id);
@@ -272,6 +275,7 @@ function HierarchyView({ nodes }: { nodes: VisualNode[] }) {
   return <div className="flex flex-wrap justify-center gap-8 overflow-x-auto bg-[#000000] px-4 py-8">{roots.map(root => branch(root))}</div>;
 }
 
+/* ---------------- timeline ---------------- */
 function TimelineView({ events }: { events: { title: string; date?: string; description?: string }[] }) {
   return (
     <div className="bg-[#000000] px-5 py-7">
@@ -290,6 +294,7 @@ function TimelineView({ events }: { events: { title: string; date?: string; desc
   );
 }
 
+/* ---------------- cycle ---------------- */
 function CycleView({ nodes }: { nodes: VisualNode[] }) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-3 bg-[#000000] px-4 py-8">
@@ -307,21 +312,19 @@ function CycleView({ nodes }: { nodes: VisualNode[] }) {
   );
 }
 
+/* ---------------- comparison ---------------- */
 function ComparisonView({ columns, comparisons }: {
   columns: string[];
   comparisons: { label: string; values: string[] }[];
 }) {
-  // AUTO-FIX: If LLM included "Stage" as column, remove it
   let normalizedColumns = columns;
   let normalizedComparisons = comparisons;
-  
+
   const firstCol = columns[0]?.toLowerCase() || "";
   if (["stage", "step", "phase", "aspect", "feature"].includes(firstCol)) {
     normalizedColumns = columns.slice(1);
     normalizedComparisons = comparisons.map(row => {
       if (row.values.length === columns.length) {
-        // Take first N values where N = normalizedColumns.length
-        // This fixes Goal: [Parse..., "I want...", "—"] -> [Parse..., "I want..."]
         return { ...row, values: row.values.slice(0, normalizedColumns.length) };
       }
       return row;
@@ -333,7 +336,7 @@ function ComparisonView({ columns, comparisons }: {
 
   return (
     <div className="overflow-x-auto bg-[#000000] p-4">
-      <div className="min-w-">
+      <div className="min-w-[480px]">
         <div className="grid gap-2" style={{ gridTemplateColumns: `minmax(110px,0.8fr) repeat(${headers.length},minmax(120px,1fr))` }}>
           <div className="p-2" />
           {headers.map((header, i) => (
@@ -353,33 +356,149 @@ function ComparisonView({ columns, comparisons }: {
   );
 }
 
+/* ---------------- charts (bar / line / pie) ---------------- */
+const CHART_COLORS = ["#c24848", "#EEE3D1", "#8A8578", "#d9a05b", "#6b9080", "#7a6a9a"];
+
 function ChartView({ chart }: { chart: NonNullable<VisualPayload["chart"]> }) {
-  const values = chart.series.flatMap(series => series.values).filter(Number.isFinite);
-  const max = Math.max(...values, 1);
+  const kind = chart.kind ?? "bar";
+  const data = chart.labels.map((label, i) => {
+    const row: Record<string, any> = { name: label };
+    chart.series.forEach(s => { row[s.name] = s.values[i]; });
+    return row;
+  });
+  const tip = {
+    contentStyle: { background: "#171614", border: "1px solid rgba(238,227,209,0.2)", borderRadius: 8, color: "#EEE3D1" },
+    labelStyle: { color: "#EEE3D1" },
+  };
+  const axis = { stroke: "rgba(238,227,209,0.4)", fontSize: 11 };
+  const unit = chart.unit ? ` ${chart.unit}` : "";
 
   return (
-    <div className="space-y-5 bg-[#000000] p-5">
-      {chart.series.map(series => (
-        <div key={series.name}>
-          <p className="mb-2 text-xs font-semibold text-[#EEE3D1]/70">{series.name}</p>
-          <div className="space-y-3">
-            {series.values.map((value, i) => (
-              <div key={`${series.name}-${i}`} className="grid grid-cols-[minmax(60px,0.8fr)_minmax(80px,2fr)_auto] items-center gap-3">
-                <span className="truncate text-xs text-[#EEE3D1]/60">{chart.labels[i] ?? `Item ${i + 1}`}</span>
-                <div className="h-3 overflow-hidden rounded-full bg-[#EEE3D1]/10">
-                  <div className="h-full rounded-full bg-[#EEE3D1]/65" style={{ width: `${Math.max(0, Math.min(100, (value / max) * 100))}%` }} />
-                </div>
-                <span className="font-mono text-xs text-[#EEE3D1]">{value}{chart.unit ? ` ${chart.unit}` : ""}</span>
-              </div>
+    <div className="h-72 w-full bg-[#000000] p-4">
+      <ResponsiveContainer width="100%" height="100%">
+        {kind === "pie" ? (
+          <PieChart>
+            <Pie data={data} dataKey={chart.series[0].name} nameKey="name" outerRadius="75%" label>
+              {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+            </Pie>
+            <Tooltip {...tip} />
+            <Legend />
+          </PieChart>
+        ) : kind === "line" ? (
+          <LineChart data={data}>
+            <CartesianGrid stroke="rgba(238,227,209,0.08)" />
+            <XAxis dataKey="name" {...axis} />
+            <YAxis {...axis} unit={unit} />
+            <Tooltip {...tip} />
+            {chart.series.length > 1 && <Legend />}
+            {chart.series.map((s, i) => (
+              <Line
+                key={s.name}
+                type="monotone"
+                dataKey={s.name}
+                stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
             ))}
+          </LineChart>
+        ) : (
+          <BarChart data={data}>
+            <CartesianGrid stroke="rgba(238,227,209,0.08)" />
+            <XAxis dataKey="name" {...axis} />
+            <YAxis {...axis} unit={unit} />
+            <Tooltip {...tip} cursor={{ fill: "rgba(238,227,209,0.05)" }} />
+            {chart.series.length > 1 && <Legend />}
+            {chart.series.map((s, i) => (
+              <Bar
+                key={s.name}
+                dataKey={s.name}
+                fill={CHART_COLORS[i % CHART_COLORS.length]}
+                radius={[4, 4, 0, 0]}
+              />
+            ))}
+          </BarChart>
+        )}
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ---------------- system architecture (layers) ---------------- */
+function ArchitectureView({ nodes }: { nodes: VisualNode[] }) {
+  const layers: { name: string; items: VisualNode[] }[] = [];
+  nodes.forEach(n => {
+    const name = (n as any).layer || (n as any).group || "Components";
+    let l = layers.find(x => x.name === name);
+    if (!l) { l = { name, items: [] }; layers.push(l); }
+    l.items.push(n);
+  });
+
+  return (
+    <div className="space-y-3 bg-[#000000] p-4">
+      {layers.map((layer, i) => (
+        <div key={layer.name}>
+          <div className="rounded-xl border border-dashed border-[#EEE3D1]/20 p-3">
+            <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A0303]">{layer.name}</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              {layer.items.map(n => <NodeCard key={n.id} node={n} variant="1" />)}
+            </div>
           </div>
+          {i < layers.length - 1 && <p className="py-1 text-center text-[#EEE3D1]/40">↓</p>}
         </div>
       ))}
     </div>
   );
 }
 
-/* ---------------- small UI bits ---------------- */
+/* ---------------- connection graph (network) ---------------- */
+function ConnectionGraphView({ nodes, edges }: { nodes: VisualNode[]; edges: VisualEdge[] }) {
+  const W = 640, H = 420, cx = W / 2, cy = H / 2, r = Math.min(W, H) / 2 - 70;
+  const pos = new Map(nodes.map((n, i) => {
+    const a = (2 * Math.PI * i) / nodes.length - Math.PI / 2;
+    return [n.id, { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }];
+  }));
+
+  return (
+    <div className="overflow-x-auto bg-[#000000] p-2">
+      <svg viewBox={`0 0 ${W} ${H}`} className="mx-auto w-full min-w-[480px]">
+        {edges.map((e, i) => {
+          const a = pos.get(e.from), b = pos.get(e.to);
+          if (!a || !b) return null;
+          return (
+            <g key={i}>
+              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="rgba(238,227,209,0.35)" strokeWidth={1.2} />
+              {e.label && (
+                <text
+                  x={(a.x + b.x) / 2}
+                  y={(a.y + b.y) / 2}
+                  fill="rgba(238,227,209,0.55)"
+                  fontSize="9"
+                  textAnchor="middle"
+                >
+                  {e.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+        {nodes.map(n => {
+          const p = pos.get(n.id)!;
+          return (
+            <g key={n.id}>
+              <circle cx={p.x} cy={p.y} r={26} fill="#171614" stroke="rgba(138,3,3,0.7)" strokeWidth={1.5} />
+              <text x={p.x} y={p.y + 4} fill="#EEE3D1" fontSize="10" textAnchor="middle">
+                {n.label.length > 12 ? n.label.slice(0, 11) + "…" : n.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+/* ---------------- labels ---------------- */
 const TYPE_LABEL: Record<string, string> = {
   flowchart: "Flowchart",
   concept_map: "Concept map",
@@ -394,22 +513,7 @@ const TYPE_LABEL: Record<string, string> = {
   data_chart: "Data chart",
 };
 
-const Chip = ({ children }: { children: React.ReactNode }) => (
-  <span className="rounded-full border border-[#EEE3D1]/10 bg-[#EEE3D1]/[0.05] px-2.5 py-0.5 text-[11px] text-[#EEE3D1]/60">
-    {children}
-  </span>
-);
-
-const Pill = ({ open, openText, closeText }: { open: boolean; openText: string; closeText: string }) => (
-  <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#EEE3D1]/15 bg-[#EEE3D1]/[0.06] px-3.5 py-1.5 text-[12px] font-medium text-[#EEE3D1]/80 transition group-hover:bg-[#EEE3D1]/[0.12]">
-    {open ? closeText : openText}
-    {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-  </span>
-);
-
-/* ---------------- main ---------------- */
-/* ---------------- single card (nee old logic yela undo alane) ---------------- */
-// Replace SingleCard definition with this exact line:
+/* ---------------- single card ---------------- */
 function SingleCard({ visual, defaultOpen = false }: SingleProps) {
   const nodes = visual.nodes ?? [];
   const edges = visual.edges ?? [];
@@ -423,21 +527,23 @@ function SingleCard({ visual, defaultOpen = false }: SingleProps) {
 
   if (!hasDiagram) return null;
 
-  const count = nodes.length || steps.length || visual.comparisons?.length || visual.timeline?.length || 0;
+  const count =
+    nodes.length || steps.length || visual.comparisons?.length || visual.timeline?.length || 0;
 
   const iconMap: Record<string, React.ReactNode> = {
-  concept_map: <Network size={18} strokeWidth={1.75} />,
-  connection_graph: <Network size={18} strokeWidth={1.75} />,
-  hierarchy: <Network size={18} strokeWidth={1.75} />,
-  steps: <ListOrdered size={18} strokeWidth={1.75} />,
-  timeline: <ListOrdered size={18} strokeWidth={1.75} />,
-  comparison: <Scale size={18} strokeWidth={1.75} />,
-  data_chart: <Scale size={18} strokeWidth={1.75} />,
-};
+    concept_map: <Network size={18} strokeWidth={1.75} />,
+    connection_graph: <Network size={18} strokeWidth={1.75} />,
+    hierarchy: <Network size={18} strokeWidth={1.75} />,
+    steps: <ListOrdered size={18} strokeWidth={1.75} />,
+    timeline: <ListOrdered size={18} strokeWidth={1.75} />,
+    comparison: <Scale size={18} strokeWidth={1.75} />,
+    data_chart: <Scale size={18} strokeWidth={1.75} />,
+  };
 
-const visualIcon = iconMap[visual.type as string] ?? (
-  <Workflow size={18} strokeWidth={1.75} />
-);
+  const visualIcon = iconMap[visual.type as string] ?? (
+    <Workflow size={18} strokeWidth={1.75} />
+  );
+
   return (
     <section className="w-full">
       <button
@@ -451,12 +557,12 @@ const visualIcon = iconMap[visual.type as string] ?? (
             {visual.title || "Visual structure"}
           </h3>
           <p className="text-[12px] text-[#EEE3D1]/45">
-            {TYPE_LABEL[visual.type] ?? "Visual"}{count > 0 && ` · ${count} steps`}
+            {TYPE_LABEL[visual.type] ?? "Visual"}{count > 0 && ` · ${count} items`}
           </p>
         </div>
 
         <span className="flex shrink-0 items-center gap-1 text-[12.5px] text-[#EEE3D1]/60 transition group-hover:text-[#EEE3D1]">
-          {expanded ? "Hide" : "View releated visuals"}
+          {expanded ? "Hide" : "View related visuals"}
           {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </span>
       </button>
@@ -468,6 +574,7 @@ const visualIcon = iconMap[visual.type as string] ?? (
               <IRAMarkdown content={visual.description} />
             </div>
           )}
+
           {visual.type === "comparison" && visual.comparisons?.length ? (
             <ComparisonView columns={visual.columns ?? []} comparisons={visual.comparisons} />
           ) : visual.type === "data_chart" && visual.chart ? (
@@ -479,7 +586,15 @@ const visualIcon = iconMap[visual.type as string] ?? (
           ) : visual.type === "hierarchy" && nodes.length ? (
             <HierarchyView nodes={nodes} />
           ) : visual.type === "concept_map" && nodes.length ? (
-            <ConceptMap nodes={nodes} edges={edges} />
+            <ConceptMap
+              nodes={nodes}
+              edges={edges}
+              centerNodeId={(visual as any).centerNodeId}
+            />
+          ) : visual.type === "system_architecture" && nodes.length ? (
+            <ArchitectureView nodes={nodes} />
+          ) : visual.type === "connection_graph" && nodes.length ? (
+            <ConnectionGraphView nodes={nodes} edges={edges} />
           ) : nodes.length > 0 ? (
             <Flowchart nodes={nodes} edges={edges} />
           ) : steps.length > 0 ? (
@@ -491,18 +606,13 @@ const visualIcon = iconMap[visual.type as string] ?? (
   );
 }
 
-
 /* ---------------- MAIN - SINGLE VISUAL PER ANSWER ---------------- */
-
 export default function IRAVisualRenderer({
   visual,
   content = "",
   defaultOpen = false,
 }: Props) {
-  // Accept legacy arrays, but render at most one visual card.
-  const singleVisual = Array.isArray(visual)
-    ? visual[0]
-    : visual;
+  const singleVisual = Array.isArray(visual) ? visual[0] : visual;
 
   if (!singleVisual || singleVisual.type === undefined) {
     return null;
